@@ -35,7 +35,7 @@ SECTIONS = {
 }
 REQUIRED = tuple(SECTIONS)[:5]
 AUTHOR_FIELDS = {"title", "date", "ai_roles", *SECTIONS}
-NUMBER = r"[0-9]{4,}"
+NUMBER = r"[0-9]+"
 RECORD_NAME = re.compile(rf"({NUMBER})-[a-z0-9]+(?:-[a-z0-9]+)*\.md")
 EVENT_NAME = re.compile(rf"({NUMBER})-(outcome|deprecation)-({NUMBER})\.md")
 SCREENSHOT_NAME = re.compile(rf"({NUMBER})-screenshot-({NUMBER})")
@@ -82,15 +82,21 @@ def normalized_text(value, label, *, single_line=False):
 
 
 def canonical_id(raw):
-    if not re.fullmatch(NUMBER, raw) or raw != f"{int(raw):04d}" or int(raw) < 1:
-        raise ValueError(f"Invalid record number {raw!r}")
-    return raw
+    if isinstance(raw, int) and not isinstance(raw, bool):
+        raw = str(raw)
+    if not isinstance(raw, str) or not re.fullmatch(NUMBER, raw) or int(raw) < 1:
+        raise ValueError(f"Invalid decision number {raw!r}")
+    return f"{int(raw):04d}"
+
+
+def display_id(record_id):
+    return str(int(record_id))
 
 
 def normalize_record(data):
     invalid = data.keys() - AUTHOR_FIELDS
     if invalid:
-        raise ValueError(f"Unknown receipt fields: {', '.join(sorted(invalid))}")
+        raise ValueError(f"Unknown decision fields: {', '.join(sorted(invalid))}")
     roles = data.get("ai_roles", [])
     if not isinstance(roles, list) or any(role not in AI_ROLES for role in roles):
         raise ValueError(f"AI roles must be a list of: {', '.join(AI_ROLES)}")
@@ -131,14 +137,14 @@ def acceptance_gaps(record):
 
 def render_record(record):
     metadata = [
-        f"# {record['id']} — {record['title']}",
+        f"# Decision {display_id(record['id'])} — {record['title']}",
         "",
         f"Date: {record['date']}",
         f"Status: {record['status']}",
         f"AI roles: {', '.join(record['ai_roles']) or MISSING}",
     ]
     if record["supersedes"]:
-        metadata.append(f"Supersedes: {record['supersedes']}")
+        metadata.append(f"Supersedes: {display_id(record['supersedes'])}")
     sections = [f"## {title}\n\n{record[key]}" for key, title in SECTIONS.items() if record[key]]
     return "\n\n".join(["\n".join(metadata), *sections]) + "\n"
 
@@ -148,9 +154,9 @@ def parse_record(path, record_id):
     titles = {heading: key for key, heading in SECTIONS.items()}
     matches = re.split(r"^## (" + "|".join(map(re.escape, titles)) + r")[ \t]*$", raw, flags=re.MULTILINE)
     lines = matches[0].strip().splitlines()
-    title = re.fullmatch(rf"# {record_id} — (.+)", lines[0]) if lines else None
-    if not title:
-        raise ValueError("heading must contain the matching receipt number and title")
+    title = re.fullmatch(rf"# (?:Decision )?({NUMBER}) — (.+)", lines[0]) if lines else None
+    if not title or canonical_id(title[1]) != record_id:
+        raise ValueError("heading must contain the matching decision number and title")
     fields = {}
     for line in lines[1:]:
         if not line.strip():
@@ -163,7 +169,7 @@ def parse_record(path, record_id):
     if status not in ("proposed", "accepted") or "Date" not in fields or "AI roles" not in fields:
         raise ValueError("Date, Status (proposed or accepted), and AI roles metadata are required")
     roles = fields["AI roles"]
-    data = {"title": title[1], "date": fields["Date"], "ai_roles": roles.split(", ") if roles != MISSING else []}
+    data = {"title": title[2], "date": fields["Date"], "ai_roles": roles.split(", ") if roles != MISSING else []}
     for start in range(1, len(matches), 2):
         key = titles[matches[start]]
         if key in data:
@@ -175,19 +181,20 @@ def parse_record(path, record_id):
     record = normalize_record(data)
     gaps = acceptance_gaps(record)
     if status == "accepted" and gaps:
-        raise ValueError(f"Accepted receipt has gaps: {', '.join(gaps)}")
+        raise ValueError(f"Accepted decision has gaps: {', '.join(gaps)}")
     return dict(record, id=record_id, path=path, status=status, effective_status=status, supersedes=supersedes)
 
 
 def render_event(event):
     label = event["kind"].capitalize()
-    return f"# {label} for {event['record_id']}\n\nDate: {event['date']}\n\n{event['text']}\n"
+    return f"# {label} for Decision {display_id(event['record_id'])}\n\nDate: {event['date']}\n\n{event['text']}\n"
 
 
 def parse_event(path, event_id, kind, record_id):
     lines = read_managed_text(path).splitlines()
-    expected_heading = f"# {kind.capitalize()} for {record_id}"
-    if len(lines) < 5 or lines[0] != expected_heading or lines[1] or not lines[2].startswith("Date: ") or lines[3]:
+    heading = re.fullmatch(rf"# {kind.capitalize()} for (?:Decision )?({NUMBER})", lines[0]) if lines else None
+    if (len(lines) < 5 or not heading or canonical_id(heading[1]) != record_id
+            or lines[1] or not lines[2].startswith("Date: ") or lines[3]):
         raise ValueError(f"Expected a {kind} heading, date, and text")
     body = normalized_text("\n".join(lines[4:]), "event")
     if not body or MISSING in body.lower():
@@ -229,7 +236,7 @@ def screenshot_fields(state, route, viewport, caption):
 
 def render_screenshot(event):
     return (
-        f"# Screenshot for {event['record_id']}\n\n"
+        f"# Screenshot for Decision {display_id(event['record_id'])}\n\n"
         f"Date: {event['date']}\nState: {event['state']}\nRoute: {event['route']}\n"
         f"Viewport: {event['viewport']}\nCaption: {event['text']}\n\n"
         "![Screenshot](image.png)\n"
@@ -243,7 +250,8 @@ def parse_screenshot(bundle, event_id, record_id):
     image_path = bundle / "image.png"
     lines = read_managed_text(path).splitlines()
     fields = ("Date: ", "State: ", "Route: ", "Viewport: ", "Caption: ")
-    if (len(lines) < 7 or lines[0] != f"# Screenshot for {record_id}" or lines[1]
+    heading = re.fullmatch(rf"# Screenshot for (?:Decision )?({NUMBER})", lines[0]) if lines else None
+    if (len(lines) < 7 or not heading or canonical_id(heading[1]) != record_id or lines[1]
             or any(not line.startswith(field) for field, line in zip(fields, lines[2:7]))):
         raise ValueError("Screenshot metadata needs a date, state, route, viewport, and caption")
     captured, state, route, viewport, caption = (line[len(field):] for field, line in zip(fields, lines[2:7]))
@@ -295,12 +303,12 @@ def check_lifecycle(records, events):
             continue
         prior = records.get(prior_id)
         if not prior or prior["status"] != "accepted" or prior_id == record["id"]:
-            raise ValueError(f"Receipt {record['id']} references invalid predecessor {prior_id}")
+            raise ValueError(f"Decision {display_id(record['id'])} references invalid predecessor {display_id(prior_id)}")
         if record["date"] < prior["date"]:
-            raise ValueError(f"Receipt {record['id']} predates its predecessor {prior_id}")
+            raise ValueError(f"Decision {display_id(record['id'])} predates its predecessor {display_id(prior_id)}")
         if record["status"] == "accepted":
             if prior_id in successors:
-                raise ValueError(f"Receipt {prior_id} has two accepted successors")
+                raise ValueError(f"Decision {display_id(prior_id)} has two accepted successors")
             successors[prior_id] = record["id"]
             prior["effective_status"] = "superseded"
     for start in successors:
@@ -317,7 +325,7 @@ def check_lifecycle(records, events):
         if event["kind"] == "screenshot" and record:
             continue
         if not record or record["status"] != "accepted" or event["date"] < record["date"]:
-            raise ValueError(f"Event {event['id']} references an invalid receipt {record_id}")
+            raise ValueError(f"Event {display_id(event['id'])} references an invalid decision {display_id(record_id)}")
         if event["kind"] == "deprecation":
             if record_id in deprecations or record_id in successors:
                 raise ValueError(f"Conflicting retirement records for {record_id}")
@@ -333,11 +341,11 @@ def read_log(log):
             continue
         named = RECORD_NAME.fullmatch(path.name)
         if not named:
-            raise ValueError(f"Invalid receipt filename: {path.name}")
+            raise ValueError(f"Invalid decision filename: {path.name}")
         try:
             record_id = canonical_id(named[1])
             if record_id in records:
-                raise ValueError(f"Duplicate receipt number {record_id}")
+                raise ValueError(f"Duplicate decision number {display_id(record_id)}")
             records[record_id] = parse_record(path, record_id)
         except ValueError as exc:
             raise ValueError(f"{path.name}: {exc}") from exc
@@ -368,6 +376,7 @@ def read_log(log):
                 event_ids.add(event_id)
             except ValueError as exc:
                 raise ValueError(f"{path.name}: {exc}") from exc
+    events.sort(key=lambda event: int(event["id"]))
     check_lifecycle(records, events)
     return records, events
 
@@ -375,8 +384,8 @@ def read_log(log):
 def render_index(records, events=()):
     lines = [
         INDEX_MARKER, "# Design decisions", "",
-        "This index is generated from the receipts and their dated events.", "",
-        "| Receipt | Decision | Status | Date | Links |", "| --- | --- | --- | --- | --- |",
+        "This index is generated from the decisions and their dated events.", "",
+        "| Decision | Title | Status | Date | Links |", "| --- | --- | --- | --- | --- |",
     ]
     successors = {r["supersedes"]: r for r in records.values() if r["supersedes"] and r["status"] == "accepted"}
     screenshots = {}
@@ -391,15 +400,15 @@ def render_index(records, events=()):
         if record["supersedes"]:
             prior = records[record["supersedes"]]
             label = "Supersedes" if record["status"] == "accepted" else "Proposed successor to"
-            links.append(f"{label} [{prior['id']}]({prior['path'].name})")
+            links.append(f"{label} [Decision {display_id(prior['id'])}]({prior['path'].name})")
         if record_id in successors:
             successor = successors[record_id]
-            links.append(f"Replaced by [{successor['id']}]({successor['path'].name})")
+            links.append(f"Replaced by [Decision {display_id(successor['id'])}]({successor['path'].name})")
         for shot in screenshots.get(record_id, ()):
             label = shot["state"].capitalize()
             links.append(f"[{label} screenshot](events/{shot['path'].parent.name}/README.md)")
         link_text = ", ".join(links)
-        lines.append(f"| [{record_id}]({record['path'].name}) | {title} | {status} | {record['date']} | {link_text} |")
+        lines.append(f"| [Decision {display_id(record_id)}]({record['path'].name}) | {title} | {status} | {record['date']} | {link_text} |")
     return "\n".join(lines) + "\n"
 
 
@@ -409,7 +418,7 @@ def next_id(identifiers):
 
 def filename_for(record):
     slug = re.sub(r"[^a-z0-9]+", "-", record["title"].casefold()).strip("-")[:72].rstrip("-")
-    return f"{record['id']}-{slug or 'decision'}.md"
+    return f"{display_id(record['id'])}-{slug or 'decision'}.md"
 
 
 @contextmanager

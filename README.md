@@ -62,35 +62,44 @@ Start a new chat in any Git project and invoke the skill there. Each project kee
 ## Your first session
 
 1. **Start before editing.** Use the prompt above while the old UI is still available. For a visible change in a runnable web app, the agent can start or reuse the local dev server and capture the same screen or interaction before and after the edit. If the earlier state is already gone, the agent can still attach the after screenshot. [Browser setup and capture guide](skills/design-receipts/references/screenshots.md)
-2. **Build as usual.** Talk through choices in the chat. When a meaningful decision comes up, the agent saves a proposed receipt with the choice, rejected alternatives, trade-offs, AI’s role, and any screenshots it captured. Confirm or correct the proposal in one reply. If you only want to capture one decision, say **“Log this decision”** and describe what you chose and why.
-3. **Ask for a draft when you need one.** Say **“Compile my confirmed receipts into a case-study draft.”** The Markdown draft links back to the decisions and screenshots. Look for `[verify]` where the evidence leaves a gap, such as an outcome you haven’t measured.
+2. **Build as usual.** Talk through choices in the chat. When a meaningful decision comes up, the agent saves a proposed decision record with the choice, rejected alternatives, trade-offs, AI’s role, and any screenshots it captured. Confirm or correct the proposal in one reply. If you only want to capture one decision, say **“Log this decision”** and describe what you chose and why.
+3. **Ask for a draft when you need one.** Say **“Compile my confirmed decisions into a case-study draft.”** The Markdown draft links back to the decisions and screenshots. Look for `[verify]` where the evidence leaves a gap, such as an outcome you haven’t measured.
 
-## See what a receipt looks like
+## See what a decision record looks like
 
 In **Routeboard**, a fictional transit app, the AI suggested showing live arrivals under every stop. The designer chose to reveal them on tap so the stop names would be easier to scan. The trade-off was one extra tap.
 
-The [decision receipt](examples/routeboard/decisions/0001-reveal-arrivals-on-tap.md) keeps that reasoning with the project. Later, the draft uses it to tell the story.
+The [decision record](examples/routeboard/decisions/1-reveal-arrivals-on-tap.md) keeps that reasoning with the project. Later, the draft uses it to tell the story.
 
-> The route list needed to stay easy to scan. I chose to put arrival predictions behind a tap to give stop names more room, accepting one additional step to check the next arrival. [Receipt 0001](examples/routeboard/decisions/0001-reveal-arrivals-on-tap.md)
+> The route list needed to stay easy to scan. I chose to put arrival predictions behind a tap to give stop names more room, accepting one additional step to check the next arrival. [Decision 1](examples/routeboard/decisions/1-reveal-arrivals-on-tap.md)
 
 [Read the complete case-study draft](examples/routeboard/case-study.md) · [Replay the example](examples/routeboard/README.md)
 
-## Find and use your receipts
+## Find and use your decisions
 
-Open `docs/decisions/README.md` for an index of decisions and their screenshots. Receipts are Markdown files in `docs/decisions/`, and case-study drafts go in `docs/decisions/drafts/` by default. If your project already uses `docs/decisions/`, give the agent a different project-relative folder.
+Open `docs/decisions/README.md` for an index of decisions and their screenshots. Decision records are Markdown files in `docs/decisions/`, and case-study drafts go in `docs/decisions/drafts/` by default. If your project already uses `docs/decisions/`, give the agent a different project-relative folder.
 
 | When you want to | Ask the agent |
 | --- | --- |
 | See what needs your attention | “Show me the decisions waiting for confirmation.” |
-| Preserve a change of direction | “We changed course. Record what replaced receipt 0001 and why.” |
-| Add something you learned later | “Add this usability test finding to receipt 0001.” |
+| Preserve a change of direction | “We changed course. Record what replaced Decision 1 and why.” |
+| Add something you learned later | “Add this usability test finding to Decision 1.” |
 | Draft a focused case study | “Compile only the decisions about onboarding.” |
+| Get a document to share | “Export my case-study draft as a PDF with the screenshots.” |
 
 Codex and Claude Code can also show an optional reminder when a turn changes project files. Enable it in one project or across your projects with a decision log. [Reminder setup](skills/design-receipts/references/hooks.md)
 
+## Export your documentation
+
+Ask **“Export my case-study draft as a PDF.”** The agent exports your edited Markdown draft with its screenshots, captions, and decision citations. The PDF includes the referenced evidence so it can be read outside your project. `[verify]` gaps stay visible for you to fill.
+
+The PDF uses a blue cover, readable type, generous spacing, and captioned screenshots. Its fonts are included for consistent export across projects.
+
+PDF export uses a local Node.js, Playwright, and Chromium setup. It saves a new file in `docs/decisions/drafts/` by default. You can ask for a different filename or destination. [PDF export guide](skills/design-receipts/references/export.md)
+
 ## Privacy, updates, and removal
 
-- New logs, screenshots, and default drafts are Git-ignored. Use `init --track` to put a new log under version control. Review the text and images before sharing and keep secrets and personal data out of the record. Your agent handles conversation and receipt text according to its own data settings.
+- New logs, screenshots, and default drafts are Git-ignored. Use `init --track` to put a new log under version control. Review the text and images before sharing and keep secrets and personal data out of the record. Your agent handles conversation and decision text according to its own data settings.
 - To update, run `git pull --ff-only` in your checkout of this repository and replace the installed skill folder with the refreshed copy. Start a new agent chat to load it.
 - To uninstall, remove any [reminders you installed](skills/design-receipts/references/hooks.md) and delete the installed `design-receipts` skill folder. The decision log and images remain in your project.
 

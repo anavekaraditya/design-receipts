@@ -9,6 +9,7 @@ from datetime import date
 from pathlib import Path
 
 from compile_receipts import add_commands
+from export_receipts import add_export_command
 from receipt_log import (
     AUTHOR_FIELDS,
     INDEX,
@@ -18,6 +19,7 @@ from receipt_log import (
     canonical_id,
     check_lifecycle,
     confirm_managed,
+    display_id,
     filename_for,
     has_outcome,
     initialize,
@@ -68,9 +70,9 @@ def input_object():
 
 
 def get_record(records, record_id):
-    canonical_id(record_id)
+    record_id = canonical_id(record_id)
     if record_id not in records:
-        raise ValueError(f"Receipt {record_id} does not exist. Run review to find the number.")
+        raise ValueError(f"Decision {display_id(record_id)} does not exist. Run review to find the number.")
     return records[record_id]
 
 
@@ -78,7 +80,7 @@ def check_predecessor(records, record):
     if record["supersedes"]:
         prior = get_record(records, record["supersedes"])
         if prior["effective_status"] != "accepted":
-            raise ValueError(f"Receipt {prior['id']} must be currently accepted to be superseded")
+            raise ValueError(f"Decision {display_id(prior['id'])} must be currently accepted to be superseded")
 
 
 def refresh_index(log, records, events):
@@ -109,7 +111,8 @@ def capture(args, root, log):
     for key in gaps:
         if key != "ai_roles" and MISSING not in authored[key].lower():
             authored[key] += f"\n\n{MISSING}" if key != "title" else f" {MISSING}"
-    record = dict(authored, id=record_id, status=status, effective_status=status, supersedes=args.supersedes)
+    prior_id = canonical_id(args.supersedes) if args.supersedes else None
+    record = dict(authored, id=record_id, status=status, effective_status=status, supersedes=prior_id)
     check_predecessor(records, record)
     path = log / filename_for(record)
     record["path"] = path
@@ -117,7 +120,7 @@ def capture(args, root, log):
     check_lifecycle(records, events)
     write_atomic(path, render_record(record))
     index_after_save(path, log, records, events)
-    print(f"Saved {record_id} as {status} at {path.relative_to(root)}.")
+    print(f"Saved Decision {display_id(record_id)} as {status} at {path.relative_to(root)}.")
     if gaps:
         print(f"Needs review: {', '.join(gaps)}.")
 
@@ -126,20 +129,20 @@ def accept(args, root, log):
     records, events = read_log(log)
     record = get_record(records, args.record_id)
     if record["status"] != "proposed":
-        raise ValueError(f"Receipt {record['id']} has already been accepted")
+        raise ValueError(f"Decision {display_id(record['id'])} has already been accepted")
     fields = {key: record[key] for key in AUTHOR_FIELDS}
     if args.update:
         fields.update(input_object())
     authored = normalize_record(fields)
     gaps = acceptance_gaps(authored)
     if gaps:
-        raise ValueError(f"Receipt {record['id']} is still proposed. Complete: {', '.join(gaps)}.")
+        raise ValueError(f"Decision {display_id(record['id'])} is still proposed. Complete: {', '.join(gaps)}.")
     record.update(authored, status="accepted", effective_status="accepted")
     check_predecessor(records, record)
     check_lifecycle(records, events)
     write_atomic(record["path"], render_record(record))
     index_after_save(record["path"], log, records, events)
-    print(f"Accepted {record['id']} at {record['path'].relative_to(root)}.")
+    print(f"Accepted Decision {display_id(record['id'])} at {record['path'].relative_to(root)}.")
 
 
 def add_event(args, root, log):
@@ -147,7 +150,7 @@ def add_event(args, root, log):
     record = get_record(records, args.record_id)
     kind = args.event_kind
     if record["status"] != "accepted" or (kind == "deprecation" and record["effective_status"] != "accepted"):
-        raise ValueError(f"Cannot add a {kind} entry to a {record['effective_status']} receipt")
+        raise ValueError(f"Cannot add a {kind} entry to a {record['effective_status']} decision")
     data = input_object()
     if data.keys() - {"text", "date"}:
         raise ValueError("Event JSON accepts text and an optional date")
@@ -155,7 +158,7 @@ def add_event(args, root, log):
     if not body or MISSING in body.lower() or (kind == "outcome" and not has_outcome(body)):
         raise ValueError("Provide a known observation or reason")
     event_id = next_id(event["id"] for event in events)
-    path = log / "events" / f"{event_id}-{kind}-{record['id']}.md"
+    path = log / "events" / f"{display_id(event_id)}-{kind}-{display_id(record['id'])}.md"
     event = {
         "id": event_id, "record_id": record["id"], "kind": kind, "path": path,
         "date": iso_date(data.get("date", date.today().isoformat())), "text": body,
@@ -165,7 +168,7 @@ def add_event(args, root, log):
     path.parent.mkdir(exist_ok=True)
     write_atomic(path, render_event(event))
     index_after_save(path, log, records, events)
-    print(f"Saved {kind} for {record['id']} at {path.relative_to(root)}.")
+    print(f"Saved {kind} for Decision {display_id(record['id'])} at {path.relative_to(root)}.")
 
 
 def attach_screenshot(args, root, log):
@@ -177,7 +180,7 @@ def attach_screenshot(args, root, log):
     captured = iso_date(args.date) if args.date else date.today().isoformat()
 
     event_id = next_id(event["id"] for event in events)
-    bundle = log / "events" / f"{event_id}-screenshot-{record['id']}"
+    bundle = log / "events" / f"{display_id(event_id)}-screenshot-{display_id(record['id'])}"
     event = dict(
         id=event_id, record_id=record["id"], kind="screenshot", date=captured, path=bundle / "README.md",
         image_path=bundle / "image.png", **fields,
@@ -185,13 +188,13 @@ def attach_screenshot(args, root, log):
     write_screenshot(event, source)
     events.append(event)
     index_after_save(event["path"], log, records, events)
-    print(f"Attached {args.state} screenshot to {record['id']} at {event['image_path'].relative_to(root)}.")
+    print(f"Attached {args.state} screenshot to Decision {display_id(record['id'])} at {event['image_path'].relative_to(root)}.")
 
 
 def review(args, root, log):
     records, events = read_log(log)
     if not records:
-        print("No receipts yet. Capture a design decision to start the log.")
+        print("No decisions yet. Capture a design decision to start the log.")
         return
     outcomes = {event["record_id"] for event in events if event["kind"] == "outcome"}
     screenshots = Counter(event["record_id"] for event in events if event["kind"] == "screenshot")
@@ -210,7 +213,7 @@ def review(args, root, log):
             count = screenshots[record["id"]]
             if count:
                 follow_up += f" · {count} screenshot{'s' if count != 1 else ''}"
-            print(f"  {record['id']}  {record['title']}{follow_up}")
+            print(f"  Decision {display_id(record['id'])}  {record['title']}{follow_up}")
 
 
 def validate(args, root, log):
@@ -218,7 +221,7 @@ def validate(args, root, log):
     index = log / INDEX
     if not index.exists() or read_managed_text(index) != render_index(records, events):
         raise ValueError("Decision index is missing or stale. Run reindex to rebuild it.")
-    print(f"Valid log: {len(records)} receipt(s), {len(events)} event(s).")
+    print(f"Valid log: {len(records)} decision(s), {len(events)} event(s).")
 
 
 def reindex(args, root, log):
@@ -235,26 +238,26 @@ def get_parser():
     init = commands.add_parser("init", help="create a project log")
     init.add_argument("--track", action="store_true", help="leave the new log visible to Git")
     init.set_defaults(handler=init_command)
-    new = commands.add_parser("capture", help="save receipt JSON from stdin")
+    new = commands.add_parser("capture", help="save decision JSON from stdin")
     new.add_argument("--confirmed", action="store_true", help="the designer confirmed these exact details")
-    new.add_argument("--supersedes", metavar="ID", help="existing receipt this decision replaces")
+    new.add_argument("--supersedes", metavar="NUMBER", help="existing decision this one replaces")
     new.set_defaults(handler=capture)
-    approval = commands.add_parser("accept", help="accept a proposed receipt")
-    approval.add_argument("record_id")
+    approval = commands.add_parser("accept", help="accept a proposed decision")
+    approval.add_argument("record_id", metavar="NUMBER")
     approval.add_argument("--confirmed", action="store_true", required=True)
     approval.add_argument("--update", action="store_true", help="read updated authored fields as JSON from stdin")
     approval.set_defaults(handler=accept)
-    replacement = commands.add_parser("supersede", help="replace an accepted receipt with confirmed JSON from stdin")
-    replacement.add_argument("supersedes", metavar="ID")
+    replacement = commands.add_parser("supersede", help="replace an accepted decision with confirmed JSON from stdin")
+    replacement.add_argument("supersedes", metavar="NUMBER")
     replacement.add_argument("--confirmed", action="store_true", required=True)
     replacement.set_defaults(handler=capture)
     for command, kind in (("outcome", "outcome"), ("deprecate", "deprecation")):
         event = commands.add_parser(command, help=f"append a dated {kind} from JSON on stdin")
-        event.add_argument("record_id")
+        event.add_argument("record_id", metavar="NUMBER")
         event.add_argument("--confirmed", action="store_true", required=True)
         event.set_defaults(handler=add_event, event_kind=kind)
-    screenshot = commands.add_parser("attach-screenshot", help="attach a local PNG to a receipt")
-    screenshot.add_argument("record_id")
+    screenshot = commands.add_parser("attach-screenshot", help="attach a local PNG to a decision")
+    screenshot.add_argument("record_id", metavar="NUMBER")
     screenshot.add_argument("png", type=Path)
     screenshot.add_argument("--state", choices=SCREENSHOT_STATES, required=True)
     screenshot.add_argument("--route", required=True, help="local route path without query or fragment")
@@ -269,6 +272,7 @@ def get_parser():
     ):
         commands.add_parser(handler.__name__, help=help_text).set_defaults(handler=handler)
     add_commands(commands)
+    add_export_command(commands)
     return parser
 
 

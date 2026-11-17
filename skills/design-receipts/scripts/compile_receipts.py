@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 from urllib.parse import quote
 
-from receipt_log import has_outcome, iso_date, read_log
+from receipt_log import canonical_id, display_id, has_outcome, iso_date, read_log
 
 
 CONFIRMED_STATUSES = ("accepted", "superseded", "deprecated")
@@ -119,9 +119,13 @@ def validate_narrative(narrative, allowed_ids):
                 raise ValueError("Each narrative paragraph needs text and sources")
             prose = paragraph_text(paragraph["text"], "Paragraph text")
             sources = paragraph["sources"]
-            if not isinstance(sources, list) or any(
-                not isinstance(source, str) or source not in allowed_ids for source in sources
-            ):
+            if not isinstance(sources, list):
+                raise ValueError("Paragraph sources must be confirmed IDs in the evidence packet")
+            try:
+                sources = [canonical_id(source) for source in sources]
+            except ValueError:
+                raise ValueError("Paragraph sources must be confirmed IDs in the evidence packet") from None
+            if any(source not in allowed_ids for source in sources):
                 raise ValueError("Paragraph sources must be confirmed IDs in the evidence packet")
             if not sources and not prose.startswith("[verify]"):
                 raise ValueError("A paragraph without sources must begin with [verify]")
@@ -173,7 +177,7 @@ def render_draft(packet, narrative, root, target):
     records = {record["id"]: record for record in (*selected, *packet["history"])}
 
     def receipt_link(record_id):
-        return source_link(f"Receipt {record_id}", root / records[record_id]["path"], target.parent)
+        return source_link(f"Decision {display_id(record_id)}", root / records[record_id]["path"], target.parent)
 
     def render_paragraphs(paragraphs):
         return [" ".join((prose, *(receipt_link(record_id) for record_id in ids))) for prose, ids in paragraphs]
@@ -246,7 +250,7 @@ def render_draft(packet, narrative, root, target):
         latest = receipt_link(record["id"])
         reflection.append(f"What changed your judgment between {earlier} and {latest}?")
 
-    blocks = ["# Case study draft", "> Draft from confirmed decision receipts. Curate before sharing."]
+    blocks = ["# Case study draft", "> Draft from confirmed design decisions. Curate before sharing."]
     scope = [f"{key} `{value.replace('`', '')}`" for key, value in packet["filters"].items() if value]
     if scope:
         blocks.append("Selection · " + " · ".join(scope))
@@ -293,8 +297,8 @@ def install_draft(target, text, overwrite, increment):
     fd, name = tempfile.mkstemp(dir=target.parent)
     temporary_path = Path(name)
     try:
-        with os.fdopen(fd, mode="w", encoding="utf-8", newline="\n") as stream:
-            stream.write(text)
+        with os.fdopen(fd, mode="wb") as stream:
+            stream.write(text.encode("utf-8") if isinstance(text, str) else text)
             stream.flush()
             os.fsync(stream.fileno())
         if overwrite:
@@ -320,7 +324,7 @@ def compile_draft(args, root, log):
         raise ValueError("Specify --output to replace a draft")
     packet = evidence_packet(args, root, log)
     if not packet["selected"]:
-        raise ValueError("No confirmed decisions match. Accept a receipt or widen the selection.")
+        raise ValueError("No confirmed decisions match. Accept a decision or widen the selection.")
     narrative = {}
     if args.narrative is not None:
         raw = sys.stdin.read() if args.narrative == "-" else (root / args.narrative).read_text(encoding="utf-8")

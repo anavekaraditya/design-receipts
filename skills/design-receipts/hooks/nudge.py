@@ -16,8 +16,8 @@ from pathlib import Path
 
 INDEX_MARKER = b"<!-- design-receipts:index v1 -->"
 MESSAGE = "Did this turn settle a design trade-off? Ask Design Receipts to capture it."
-RECORD_NAME = re.compile(r"[0-9]{4,}-.+\.md")
-SCREENSHOT_BUNDLE = re.compile(r"[0-9]{4,}-screenshot-[0-9]{4,}")
+RECORD_NAME = re.compile(r"[0-9]+-.+\.md")
+SCREENSHOT_BUNDLE = re.compile(r"[0-9]+-screenshot-[0-9]+")
 MAX_PATHS = 2000
 STATE_MAX_AGE = 12 * 60 * 60
 SKILL_PATHS = (".agents/skills/design-receipts", ".claude/skills/design-receipts")

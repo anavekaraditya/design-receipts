@@ -2,10 +2,13 @@
 
 ## v0.1.0 preview
 
-- Capture a design decision in an agent session, then confirm the proposed receipt.
+- Label records as Decision 1, Decision 2, and so on, with ordinary numbers in commands and document citations.
+- Capture a design decision in an agent session, then confirm the proposed decision.
 - Store options, rejections, trade-offs, and AI attribution in a local Markdown log.
 - Review proposals, record later outcomes, and preserve the history when a decision changes.
 - Capture before-and-after screenshots from a running web app and link them from the decision index and draft.
-- Compile a full or filtered case-study draft with receipt links and visible evidence gaps.
+- Compile a full or filtered case-study draft with decision links and visible evidence gaps.
+- Export an edited draft to PDF with embedded screenshots and a linked evidence appendix.
+- Use an editorial PDF template with a blue grid cover, bundled fonts, clear section hierarchy, and page numbers.
 - Enable optional Claude Code and Codex reminders for one project or for all projects with an initialized decision log.
 - Replay the capture and compile flow using the fictional Routeboard example.

@@ -28,8 +28,8 @@ For a custom decision log directory, use project settings and add `--log-dir "yo
 
 ## What the reminder sees
 
-The hooks compare Git working-tree status and file metadata before and after a turn. A changed working tree with no new receipt or evidence can show one reminder. Git-ignored files, decision log bookkeeping, and install or hook config files are excluded from the working-tree signal. A turn that finishes with a clean checkout at both ends, such as one that commits all changes, may stay quiet. Decisions made in conversation can still be captured by asking the skill directly.
+The hooks compare Git working-tree status and file metadata before and after a turn. A changed working tree with no new decision or evidence can show one reminder. Git-ignored files, decision log bookkeeping, and install or hook config files are excluded from the working-tree signal. A turn that finishes with a clean checkout at both ends, such as one that commits all changes, may stay quiet. Decisions made in conversation can still be captured by asking the skill directly.
 
 The temporary baseline contains local metadata digests, keyed by host session and checkout. The Stop hook consumes it, and baselines older than 12 hours are ignored. The hook skips when it cannot read a baseline, Git status, or an initialized log. The hook passes no prompt or transcript data to Git and makes no network calls or decision writes.
 
-To check the setup, start a new turn and ask for a small project file change without capturing a receipt. The host should show a reminder when the turn finishes. Try another turn that changes a project file and captures a receipt. That turn should finish quietly.
+To check the setup, start a new turn and ask for a small project file change without capturing a decision. The host should show a reminder when the turn finishes. Try another turn that changes a project file and captures a decision. That turn should finish quietly.

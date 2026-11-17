@@ -93,14 +93,14 @@ class CompileTests(unittest.TestCase):
         draft = output.read_text(encoding="utf-8")
         self.assertNotIn("Unconfirmed idea", draft)
         self.assertEqual(draft.count("**Human overrule.**"), 2)
-        self.assertIn("Rejected clock time because related arrivals split up. [Receipt 0001]", draft)
+        self.assertIn("Rejected clock time because related arrivals split up. [Decision 1]", draft)
         self.assertIn("> The next bus would be buried.", draft)
         self.assertIn("[verify] No outcome recorded for **Group arrivals**", draft)
-        self.assertIn("The pin covered two neighboring stops. [Receipt 0004]", draft)
+        self.assertIn("The pin covered two neighboring stops. [Decision 4]", draft)
         self.assertIn("[Outcome 2026-11-18](../events/0001-outcome-0002.md)", draft)
         self.assertNotIn("run the test next Tuesday", draft)
         self.assertNotIn("No outcome recorded for **Show next arrival first**", draft)
-        self.assertIn("When is a route filter more useful than a sort? [Receipt 0002]", draft)
+        self.assertIn("When is a route filter more useful than a sort? [Decision 2]", draft)
         self.assertNotIn("## Visual evidence", draft)
 
     def test_combines_filters_and_includes_older_history(self):
@@ -111,7 +111,7 @@ class CompileTests(unittest.TestCase):
         self.assertEqual(packet["events"][0]["record_id"], "0002")
         self.assertEqual(packet["selected"][0]["path"], "docs/decisions/0002-route.md")
         draft = Path(self.run_action("compile", *filters)).read_text(encoding="utf-8")
-        self.assertIn("[Receipt 0002](../0002-route.md) supersedes [Receipt 0001](../0001-route.md)", draft)
+        self.assertIn("[Decision 2](../0002-route.md) supersedes [Decision 1](../0001-route.md)", draft)
         self.assertIn("When is a route filter more useful than a sort?", draft)
         self.assertIn("keyword `HALLWAY TEST`", draft)
         self.assertEqual(draft.count("**Human overrule.**"), 1)
@@ -134,7 +134,7 @@ class CompileTests(unittest.TestCase):
         self.assertNotIn("Unconfirmed search panel", draft)
         self.assertNotIn("The filtered map pin", draft)
         visuals, outcomes_and_reflection = draft.split("## Visual evidence\n\n", 1)[1].split("## Outcomes\n\n", 1)
-        self.assertIn("[Receipt 0002](../docs/decisions/0002-route.md) · /arrivals · 1440x900", visuals)
+        self.assertIn("[Decision 2](../docs/decisions/0002-route.md) · /arrivals · 1440x900", visuals)
         links = re.findall(r"\[(?:Before|After) screenshot\]\(([^)]+)\)", visuals)
         self.assertEqual([(output.parent / unquote(link)).resolve(strict=True) for link in links], [before, after])
         self.assertIn("[verify] No outcome recorded", outcomes_and_reflection)
@@ -161,8 +161,8 @@ class CompileTests(unittest.TestCase):
         draft = output.read_text(encoding="utf-8")
         self.assertIn("### Find the next bus", draft)
         self.assertIn(
-            "The design evolved toward time order. [Receipt 0001](../docs/decisions/0001-route.md) "
-            "[Receipt 0002](../docs/decisions/0002-route.md)\n",
+            "The design evolved toward time order. [Decision 1](../docs/decisions/0001-route.md) "
+            "[Decision 2](../docs/decisions/0002-route.md)\n",
             draft,
         )
         self.assertIn("## What was avoided and why", draft)
@@ -176,6 +176,16 @@ class CompileTests(unittest.TestCase):
                     stdin=json.dumps({"problem": [{"text": "A new design problem.", "sources": sources}]}),
                 )
             self.assertFalse((self.log / "drafts").exists())
+
+    def test_narrative_accepts_plain_decision_numbers_and_keeps_legacy_links(self):
+        output = Path(self.run_action(
+            "compile", "--narrative", "-", stdin=json.dumps({
+                "overview": [{"text": "The ordering changed after the first iteration.", "sources": [1, "2", "0002"]}],
+            }),
+        ))
+        draft = output.read_text(encoding="utf-8")
+        self.assertIn("The ordering changed after the first iteration. [Decision 1](../0001-route.md) [Decision 2](../0002-route.md)", draft)
+        self.assertNotIn("[Receipt 000", draft)
 
     def test_drafts_use_distinct_paths_and_explicit_replacement(self):
         first = Path(self.run_action("compile"))
@@ -207,7 +217,7 @@ class CompileTests(unittest.TestCase):
             record["path"] = self.log / record["path"].name
         self.events[0]["path"] = self.log / "events" / self.events[0]["path"].name
         output = Path(self.run_action("compile", "--output", "case-study.md"))
-        self.assertIn("[Receipt 0001](research%20notes/trade-offs/0001-route.md)", output.read_text())
+        self.assertIn("[Decision 1](research%20notes/trade-offs/0001-route.md)", output.read_text())
 
     def test_rejects_default_drafts_symlink_and_git_metadata(self):
         external = self.root / "external"

@@ -1,4 +1,4 @@
-# 0001 — Reveal arrivals on tap
+# Decision 1 — Reveal arrivals on tap
 
 Date: 2026-11-05
 Status: accepted

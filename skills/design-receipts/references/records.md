@@ -1,6 +1,6 @@
-# Capture and maintain receipts
+# Capture and maintain decisions
 
-Use the CLI for writes so required fields, status changes, IDs, and links stay consistent. Read the Markdown records directly for project history. Keep past reasoning intact. Add a receipt if a confirmed choice changes and add a dated entry if new evidence arrives. Use the index or `review` for current status. An accepted receipt retains its original status line after it is superseded or deprecated.
+Use the CLI for writes so required fields, status changes, IDs, and links stay consistent. Read the Markdown records directly for project history. Keep past reasoning intact. Add a decision record if a confirmed choice changes and add a dated entry if new evidence arrives. Use the index or `review` for current status. An accepted decision record retains its original status line after it is superseded or deprecated.
 
 ## Draft from what happened
 
@@ -35,16 +35,18 @@ A compact preview can fit in three lines.
 
 Run the following subcommands after `python3 -SB <skill-directory>/scripts/receipts.py`. Commands that take authored fields read a JSON object from stdin. Pass user-supplied values as data, for example through a quoted heredoc or a standard JSON encoder. Use the exact field keys in the table. Preserve an unresolved value as `[verify]` or omit it from the input. Options are one string with newline-separated Markdown bullets.
 
+Refer to decisions as `Decision 1`, `Decision 2`, and so on. Commands accept the ordinary number, such as `accept 1 --confirmed` or `attach-screenshot 1 state.png`.
+
 | Command | When to use |
 | --- | --- |
 | `init` | Prepare a new private log. `init --track` makes a new log visible to Git. |
-| `capture` | Save receipt JSON as a proposal. Add `--confirmed` only after the designer approves the substantive content. If required evidence is missing, the receipt stays proposed. |
+| `capture` | Save decision JSON as a proposal. Add `--confirmed` only after the designer approves the substantive content. If required evidence is missing, the decision stays proposed. |
 | `accept ID --confirmed` | Accept the existing proposal following designer confirmation. Add `--update` and send only the revised JSON fields when they provide corrections. |
-| `capture --supersedes ID` | Save a proposed successor. After confirmation, accept its new number. Direct confirmed replacement uses `supersede ID --confirmed` with receipt JSON. |
+| `capture --supersedes ID` | Save a proposed successor. After confirmation, accept its new number. Direct confirmed replacement uses `supersede ID --confirmed` with decision JSON. |
 | `outcome ID --confirmed` | Append a designer-confirmed observation using JSON with `text` and an optional `date`. Retain uncertainty and any evidence behind the observation. |
 | `deprecate ID --confirmed` | Retire a current decision without a successor. Send the reason as JSON `text` and an optional `date`. |
-| `attach-screenshot ID PNG` | Attach a local capture to a proposal or accepted receipt. Include `--state`, `--route`, and `--caption`. See the [browser capture workflow](screenshots.md). |
+| `attach-screenshot ID PNG` | Attach a local capture to a proposal or accepted decision. Include `--state`, `--route`, and `--caption`. See the [browser capture workflow](screenshots.md). |
 | `review` | List statuses and surface proposals or pending outcomes. |
 | `validate` / `reindex` | Check the log and generated index, or rebuild the index from valid records. |
 
-If the CLI says it saved a receipt or event and could not refresh the index, repair the index with `reindex`. The source file already exists.
+If the CLI says it saved a decision or event and could not refresh the index, repair the index with `reindex`. The source file already exists.

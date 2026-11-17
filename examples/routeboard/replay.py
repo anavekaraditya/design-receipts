@@ -87,9 +87,9 @@ def main():
     subprocess.run(["git", "init", "--quiet", str(project)], check=True)
     run_receipts(project, "init", "--track")
     run_receipts(project, "capture", payload=INITIAL)
-    run_receipts(project, "accept", "0001", "--confirmed")
-    run_receipts(project, "capture", "--confirmed", "--supersedes", "0001", payload=SUCCESSOR)
-    run_receipts(project, "outcome", "0002", "--confirmed", payload=OUTCOME)
+    run_receipts(project, "accept", "1", "--confirmed")
+    run_receipts(project, "capture", "--confirmed", "--supersedes", "1", payload=SUCCESSOR)
+    run_receipts(project, "outcome", "2", "--confirmed", payload=OUTCOME)
     run_receipts(project, "capture", payload=PROPOSAL)
     run_receipts(project, "validate")
     run_receipts(

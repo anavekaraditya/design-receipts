@@ -1,9 +1,9 @@
-# 0002 — Show the next arrival for the selected stop
+# Decision 2 — Show the next arrival for the selected stop
 
 Date: 2026-11-07
 Status: accepted
 AI roles: Decided by human, Built by AI
-Supersedes: 0001
+Supersedes: 1
 
 ## Context
 

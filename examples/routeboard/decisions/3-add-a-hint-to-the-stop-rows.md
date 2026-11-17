@@ -1,4 +1,4 @@
-# 0003 — Add a hint to the stop rows
+# Decision 3 — Add a hint to the stop rows
 
 Date: 2026-11-08
 Status: proposed

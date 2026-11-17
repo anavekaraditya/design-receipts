@@ -48,7 +48,10 @@ class ReceiptLogTests(unittest.TestCase):
         return self.cli("capture", "--confirmed", data={**RECEIPT, **fields})
 
     def record(self, receipt_id):
-        record, = self.log.glob(f"{receipt_id}-*.md")
+        candidates = list(self.log.glob(f"{int(receipt_id)}-*.md"))
+        if not candidates:
+            candidates = list(self.log.glob(f"{int(receipt_id):04d}-*.md"))
+        record, = candidates
         return record
 
     def test_new_private_log_and_idempotent_init(self):
@@ -57,7 +60,64 @@ class ReceiptLogTests(unittest.TestCase):
         self.assertIn("existing log", self.cli("init"))
         self.assertEqual(self.record("0001").read_bytes(), contents)
         self.assertEqual(self.git("status", "--short", "--untracked-files=all").stdout, "")
-        self.assertIn("Valid log: 1 receipt(s)", self.cli("validate"))
+        self.assertIn("Valid log: 1 decision(s)", self.cli("validate"))
+
+    def test_plain_numbers_work_across_the_decision_lifecycle(self):
+        self.cli("init")
+        self.assertIn("Saved Decision 1", self.cli("capture", data=RECEIPT))
+        decision = self.log / "1-keep-the-stop-list-scannable.md"
+        self.assertTrue(decision.exists())
+        self.assertIn("# Decision 1 —", decision.read_text(encoding="utf-8"))
+        self.cli("accept", "1", "--confirmed")
+        self.cli("outcome", "1", "--confirmed", data={"text": "The prototype has the intended tap target."})
+        self.assertTrue((self.log / "events" / "1-outcome-1.md").exists())
+        successor = {**RECEIPT, "title": "Expand the selected stop", "date": "2026-03-06"}
+        self.cli("supersede", "1", "--confirmed", data=successor)
+        self.assertTrue((self.log / "2-expand-the-selected-stop.md").exists())
+        self.cli("deprecate", "2", "--confirmed", data={"text": "The prototype phase ended."})
+        self.assertIn("Decision 2", self.cli("review"))
+        self.cli("validate")
+
+    def test_events_stay_in_number_order_after_nine_entries(self):
+        self.seed()
+        for number in range(1, 12):
+            self.cli("outcome", "1", "--confirmed", data={"text": f"Prototype observation {number}."})
+        evidence = json.loads(self.cli("evidence"))
+        self.assertEqual([int(event["id"]) for event in evidence["events"]], list(range(1, 12)))
+
+    def test_legacy_records_events_and_screenshots_still_work_with_plain_numbers(self):
+        self.seed()
+        decision = self.record("1")
+        legacy = decision.with_name("0001-keep-the-stop-list-scannable.md")
+        content = decision.read_text(encoding="utf-8").replace("# Decision 1 —", "# 0001 —", 1)
+        decision.unlink()
+        legacy.write_text(content, encoding="utf-8")
+        events = self.log / "events"
+        events.mkdir()
+        outcome = events / "0001-outcome-0001.md"
+        outcome.write_text("# Outcome for 0001\n\nDate: 2026-03-06\n\nPrototype reviewed.\n", encoding="utf-8")
+        screenshot = events / "0002-screenshot-0001"
+        screenshot.mkdir()
+        (screenshot / "image.png").write_bytes(PNG)
+        metadata = screenshot / "README.md"
+        metadata.write_text(
+            "# Screenshot for 0001\n\nDate: 2026-03-06\nState: after\nRoute: /stops\n"
+            "Viewport: 1x1\nCaption: Legacy screenshot\n\n![Screenshot](image.png)\n", encoding="utf-8",
+        )
+        original = {path: path.read_bytes() for path in (legacy, outcome, metadata)}
+        self.cli("reindex")
+        self.cli("validate")
+        self.cli("outcome", "1", "--confirmed", data={"text": "A second review confirmed the target."})
+        self.assertTrue((events / "3-outcome-1.md").exists())
+        self.cli("capture", "--supersedes", "1", "--confirmed", data={**RECEIPT, "title": "New direction"})
+        draft = Path(self.cli("compile").strip()).read_text(encoding="utf-8")
+        self.assertIn("[Decision 1](../0001-keep-the-stop-list-scannable.md)", draft)
+        self.assertIn("[Decision 2](../2-new-direction.md)", draft)
+        self.assertIn("../events/0002-screenshot-0001/image.png", draft)
+        self.assertNotIn("Receipt 0001", draft)
+        for path, value in original.items():
+            self.assertEqual(path.read_bytes(), value)
+        self.cli("validate")
 
     def test_existing_decisions_are_preserved_and_alternate_can_be_tracked(self):
         self.log.mkdir(parents=True)
@@ -68,7 +128,7 @@ class ReceiptLogTests(unittest.TestCase):
         self.assertFalse((self.log / "template.md").exists())
         self.cli("--log-dir", "notes/ux choices", "init", "--track")
         self.cli("--log-dir", "notes/ux choices", "capture", "--confirmed", data=RECEIPT)
-        self.assertIn("notes/ux choices/0001-", self.git("-c", "core.quotePath=false", "status", "--short", "--untracked-files=all").stdout)
+        self.assertIn("notes/ux choices/1-", self.git("-c", "core.quotePath=false", "status", "--short", "--untracked-files=all").stdout)
         for unsafe in (".git/log", "../elsewhere", str(self.root)):
             self.cli("--log-dir", unsafe, "init", ok=False)
 
@@ -99,7 +159,7 @@ class ReceiptLogTests(unittest.TestCase):
                 self.assertIn("Invalid text for title", self.cli(
                     "capture", "--confirmed", data={**RECEIPT, "title": f"First line{separator}Second line"}, ok=False,
                 ))
-        self.assertIn("Saved 0001", self.cli("capture", "--confirmed", data=RECEIPT))
+        self.assertIn("Saved Decision 1", self.cli("capture", "--confirmed", data=RECEIPT))
         self.cli("validate")
 
     def test_unmeasured_outcome_stays_visible_in_review_and_draft(self):
@@ -127,7 +187,7 @@ class ReceiptLogTests(unittest.TestCase):
         proposal = self.record("0001").read_bytes()
         source = self.root / "screenshot.png"
         source.write_bytes(PNG)
-        before = self.log / "events" / "0001-screenshot-0001"
+        before = self.log / "events" / "1-screenshot-1"
         self.attach("0001", source, "--date", "2026-03-04", state="before")
         self.assertEqual(self.record("0001").read_bytes(), proposal)
         self.assertFalse(json.loads(self.cli("evidence"))["events"])
@@ -136,7 +196,7 @@ class ReceiptLogTests(unittest.TestCase):
 
         self.cli("accept", "0001", "--confirmed")
         accepted = self.record("0001").read_bytes()
-        after = self.log / "events" / "0002-screenshot-0001"
+        after = self.log / "events" / "2-screenshot-1"
         self.attach("0001", source, "--viewport", "960x600")
         source.unlink()
         self.assertEqual(self.record("0001").read_bytes(), accepted)
@@ -144,13 +204,13 @@ class ReceiptLogTests(unittest.TestCase):
         self.assertIn("2 screenshots", self.cli("review"))
         self.assertIn("2 event(s)", self.cli("validate"))
         index = (self.log / "README.md").read_text(encoding="utf-8")
-        self.assertIn("[Before screenshot](events/0001-screenshot-0001/README.md)", index)
-        self.assertIn("[After screenshot](events/0002-screenshot-0001/README.md)", index)
+        self.assertIn("[Before screenshot](events/1-screenshot-1/README.md)", index)
+        self.assertIn("[After screenshot](events/2-screenshot-1/README.md)", index)
         self.assertEqual(self.git("status", "--short", "--untracked-files=all").stdout, "")
         draft = Path(self.cli("compile").strip()).read_text(encoding="utf-8")
         self.assertIn("## Visual evidence", draft)
-        self.assertIn("../events/0001-screenshot-0001/image.png", draft)
-        self.assertIn("../events/0002-screenshot-0001/image.png", draft)
+        self.assertIn("../events/1-screenshot-1/image.png", draft)
+        self.assertIn("../events/2-screenshot-1/image.png", draft)
         self.assertIn("[verify] No outcome recorded", draft)
 
     def test_invalid_screen_evidence_cannot_create_or_break_the_log(self):
@@ -170,7 +230,7 @@ class ReceiptLogTests(unittest.TestCase):
         source = self.root / "screenshot.png"
         source.write_bytes(PNG)
         self.attach("0001", source)
-        (self.log / "events" / "0001-screenshot-0001" / "image.png").unlink()
+        (self.log / "events" / "1-screenshot-1" / "image.png").unlink()
         self.assertIn("Expected a regular PNG", self.cli("validate", ok=False))
 
     def test_complete_draft_waits_for_confirmation_and_malformed_options_are_marked(self):
@@ -198,7 +258,7 @@ class ReceiptLogTests(unittest.TestCase):
         self.cli("accept", "0002", "--confirmed")
         self.assertIn("Superseded (1)", self.cli("review"))
         self.assertEqual(initial.read_bytes(), initial_bytes)
-        self.assertIn("Replaced by [0002]", (self.log / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("Replaced by [Decision 2]", (self.log / "README.md").read_text(encoding="utf-8"))
         self.cli("supersede", "0001", "--confirmed", data=successor, ok=False)
         second_bytes = self.record("0002").read_bytes()
         self.cli("deprecate", "0002", "--confirmed", data={"text": "Prototype ended before release.", "date": "2026-03-08"})
@@ -225,10 +285,10 @@ class ReceiptLogTests(unittest.TestCase):
         expected = record.read_text(encoding="utf-8")
         duplicate = self.log / "0001-duplicate.md"
         duplicate.write_text(expected, encoding="utf-8")
-        self.assertIn("Duplicate receipt number", self.cli("validate", ok=False))
+        self.assertIn("Duplicate decision number", self.cli("validate", ok=False))
         duplicate.unlink()
         record.write_text(expected.replace("\n\n## Context", "\nSupersedes: 0025\n\n## Context"), encoding="utf-8")
-        self.assertIn("invalid predecessor 0025", self.cli("validate", ok=False))
+        self.assertIn("invalid predecessor 25", self.cli("validate", ok=False))
 
     def test_parallel_captures_get_distinct_numbers(self):
         self.cli("init")
@@ -237,8 +297,8 @@ class ReceiptLogTests(unittest.TestCase):
                 lambda index: self.cli("capture", "--confirmed", data={**RECEIPT, "title": f"Decision {index}"}),
                 range(5),
             ))
-        self.assertEqual({line.split()[1] for line in saved}, {"0001", "0002", "0003", "0004", "0005"})
-        self.assertIn("5 receipt(s)", self.cli("validate"))
+        self.assertEqual({line.split()[2] for line in saved}, {"1", "2", "3", "4", "5"})
+        self.assertIn("5 decision(s)", self.cli("validate"))
 
     @unittest.skipUnless(hasattr(os, "symlink"), "this platform lacks symbolic links")
     def test_log_location_cannot_follow_symlinks(self):

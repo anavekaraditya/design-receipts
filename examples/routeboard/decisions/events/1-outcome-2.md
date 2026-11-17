@@ -1,4 +1,4 @@
-# Outcome for 0002
+# Outcome for Decision 2
 
 Date: 2026-11-08
 

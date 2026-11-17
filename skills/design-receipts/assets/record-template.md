@@ -1,6 +1,6 @@
 <!-- design-receipts:template v1 -->
 <!-- Keep credentials, personal data, and confidential details out of this log. -->
-# NNNN — [verify]
+# Decision 1 — [verify]
 
 Date: YYYY-MM-DD
 Status: proposed

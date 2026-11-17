@@ -125,7 +125,7 @@ class HookTests(unittest.TestCase):
     def test_record_creation_and_later_outcomes_suppress_reminders(self):
         self.hook("UserPromptSubmit")
         self.page.write_text("Updated design\n")
-        (self.log / "0001-show-route-details-on-demand.md").write_text("# Receipt\n")
+        (self.log / "1-show-route-details-on-demand.md").write_text("# Decision 1\n")
         self.assertEqual(self.hook("Stop"), {})
 
         self.hook("UserPromptSubmit")
@@ -146,9 +146,9 @@ class HookTests(unittest.TestCase):
     def test_screenshot_attachment_suppresses_reminder(self):
         self.hook("UserPromptSubmit")
         self.page.write_text("Updated design with screenshot evidence\n")
-        bundle = self.log / "events" / "0001-screenshot-0001"
+        bundle = self.log / "events" / "1-screenshot-1"
         bundle.mkdir(parents=True)
-        (bundle / "README.md").write_text("# Screenshot for 0001\n")
+        (bundle / "README.md").write_text("# Screenshot for Decision 1\n")
         self.assertEqual(self.hook("Stop"), {})
 
     def test_alternate_log_and_nested_working_directory(self):
