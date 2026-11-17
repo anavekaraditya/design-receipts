@@ -1,0 +1,39 @@
+{
+  "overview": [
+    {
+      "text": "Routeboard helps riders find a stop and check its arrivals. I explored how much arrival information to show in the stop list.",
+      "sources": ["0001", "0002"]
+    }
+  ],
+  "problem": [
+    {
+      "text": "Showing arrivals for every stop puts predictions in competition with stop names. Riders who have already selected a stop have a different need. They want to check the next arrival.",
+      "sources": ["0001", "0002"]
+    }
+  ],
+  "constraints": [
+    {
+      "text": "Every visible prediction takes up space in the list. Hiding predictions behind a tap adds a step for riders who want to check an arrival.",
+      "sources": ["0001", "0002"]
+    }
+  ],
+  "themes": [
+    {
+      "title": "Keep the stop list easy to scan",
+      "paragraphs": [
+        {
+          "text": "The route list needed to stay easy to scan. I chose to put arrival predictions behind a tap to give stop names more room, accepting one additional step to check the next arrival.",
+          "sources": ["0001"]
+        },
+        {
+          "text": "I later chose to show one prediction in the list for the selected stop. That uses an extra line in one row and gives the rider who selected it access to the next arrival.",
+          "sources": ["0002"]
+        },
+        {
+          "text": "[verify] Check whether riders find their next arrival faster in the selected-stop design.",
+          "sources": []
+        }
+      ]
+    }
+  ]
+}

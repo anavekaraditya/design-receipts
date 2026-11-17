@@ -1,0 +1,31 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run tests
+        run: python -SB -m unittest discover -s tests -v
+      - name: Reproduce the Routeboard example
+        run: |
+          routeboard_root="$(mktemp -d)/routeboard"
+          python -SB examples/routeboard/replay.py "$routeboard_root"
+          diff -r examples/routeboard/decisions "$routeboard_root/decisions"
+          diff -u examples/routeboard/case-study.md "$routeboard_root/case-study.md"

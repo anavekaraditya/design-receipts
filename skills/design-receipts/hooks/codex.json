@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v python3 >/dev/null && root=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$root/.agents/skills/design-receipts/hooks/nudge.py\" ]; then python3 -S \"$root/.agents/skills/design-receipts/hooks/nudge.py\" codex; fi",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v python3 >/dev/null && root=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$root/.agents/skills/design-receipts/hooks/nudge.py\" ]; then python3 -S \"$root/.agents/skills/design-receipts/hooks/nudge.py\" codex; fi",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
