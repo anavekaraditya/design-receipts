@@ -32,6 +32,33 @@ cp -R ../design-receipts-src/skills/design-receipts .claude/skills/
 
 Open a new agent chat in that project. Invoke `$design-receipts` in Codex or `/design-receipts` in Cursor and Claude Code.
 
+### Install once for all your projects
+
+Use your existing checkout of this repository, or clone it once.
+
+```sh
+git clone https://github.com/anavekaraditya/design-receipts.git "$HOME/design-receipts-src"
+cd "$HOME/design-receipts-src"
+```
+
+From that checkout, run the commands for your agent.
+
+**Codex or Cursor**
+
+```sh
+mkdir -p "$HOME/.agents/skills"
+cp -R skills/design-receipts "$HOME/.agents/skills/"
+```
+
+**Claude Code**
+
+```sh
+mkdir -p "$HOME/.claude/skills"
+cp -R skills/design-receipts "$HOME/.claude/skills/"
+```
+
+Start a new chat in any Git project and invoke the skill there. Each project keeps its own decision log. [Codex skill locations](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) · [Cursor skill locations](https://cursor.com/docs/skills#skill-directories) · [Claude Code skill locations](https://code.claude.com/docs/en/skills#choose-where-skills-load)
+
 ## Your first session
 
 1. **Start before editing.** Use the prompt above while the old UI is still available. For a visible change in a runnable web app, the agent can start or reuse the local dev server and capture the same screen or interaction before and after the edit. If the earlier state is already gone, the agent can still attach the after screenshot. [Browser setup and capture guide](skills/design-receipts/references/screenshots.md)
@@ -59,12 +86,12 @@ Open `docs/decisions/README.md` for an index of decisions and their screenshots.
 | Add something you learned later | “Add this usability test finding to receipt 0001.” |
 | Draft a focused case study | “Compile only the decisions about onboarding.” |
 
-Codex and Claude Code can also show an optional reminder when a turn changes project files. Enable it separately. [Reminder setup](skills/design-receipts/references/hooks.md)
+Codex and Claude Code can also show an optional reminder when a turn changes project files. Enable it in one project or across your projects with a decision log. [Reminder setup](skills/design-receipts/references/hooks.md)
 
 ## Privacy, updates, and removal
 
 - New logs, screenshots, and default drafts are Git-ignored. Use `init --track` to put a new log under version control. Review the text and images before sharing and keep secrets and personal data out of the record. Your agent handles conversation and receipt text according to its own data settings.
-- To update, run `git -C ../design-receipts-src pull --ff-only` and replace the installed skill folder with the refreshed copy. Start a new agent chat to load it.
+- To update, run `git pull --ff-only` in your checkout of this repository and replace the installed skill folder with the refreshed copy. Start a new agent chat to load it.
 - To uninstall, remove any [reminders you installed](skills/design-receipts/references/hooks.md) and delete the installed `design-receipts` skill folder. The decision log and images remain in your project.
 
 ## Preview status

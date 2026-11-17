@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"${HOME:-}\" in /*) design_receipts_hook=\"$HOME/.agents/skills/design-receipts/hooks/nudge.py\"; if command -v python3 >/dev/null && [ -f \"$design_receipts_hook\" ]; then python3 -S \"$design_receipts_hook\" codex; fi ;; esac",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"${HOME:-}\" in /*) design_receipts_hook=\"$HOME/.agents/skills/design-receipts/hooks/nudge.py\"; if command -v python3 >/dev/null && [ -f \"$design_receipts_hook\" ]; then python3 -S \"$design_receipts_hook\" codex; fi ;; esac",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -54,7 +54,7 @@ class HookTests(unittest.TestCase):
             env={**os.environ, "PATH": self.tool_path},
         )
 
-    def hook(self, event, host="codex", log_dir=None, command=None, **fields):
+    def hook(self, event, host="codex", log_dir=None, command=None, environment=None, **fields):
         payload = {
             "hook_event_name": event,
             "cwd": str(self.root),
@@ -80,6 +80,7 @@ class HookTests(unittest.TestCase):
                 "TMP": str(self.temp),
                 "CLAUDE_PROJECT_DIR": str(self.root),
                 "PATH": os.pathsep.join((str(Path(sys.executable).parent), self.tool_path)),
+                **(environment or {}),
             },
             input=json.dumps(payload),
             check=True,
@@ -205,6 +206,60 @@ class HookTests(unittest.TestCase):
                 self.assertEqual(self.hook("UserPromptSubmit", host=host, command=start), {})
                 self.page.write_text(f"Updated design for {host}\n")
                 self.assert_nudge(self.hook("Stop", host=host, command=stop))
+
+    def use_global_preset(self, host, event, environment):
+        preset = json.loads((HOOKS / f"{host}-global.json").read_text())["hooks"]
+        command = preset[event][0]["hooks"][0]["command"]
+        return self.hook(event, host=host, command=command, environment=environment)
+
+    def install_user_hook(self, config_dir):
+        destination = config_dir / "skills" / "design-receipts" / "hooks"
+        destination.mkdir(parents=True)
+        shutil.copyfile(HOOKS / "nudge.py", destination / "nudge.py")
+
+    @unittest.skipUnless(shutil.which("sh"), "example hook configurations require a POSIX shell")
+    def test_global_configs_run_with_only_a_user_install(self):
+        user_dir = self.temp.parent / "user home"
+        environment = {"HOME": str(user_dir), "CLAUDE_CONFIG_DIR": ""}
+        for host, location in (("codex", ".agents"), ("claude", ".claude")):
+            with self.subTest(host=host):
+                self.install_user_hook(user_dir / location)
+                self.assertEqual(self.use_global_preset(host, "UserPromptSubmit", environment), {})
+                self.page.write_text(f"Changed design with globally installed {host} hook\n")
+                self.assert_nudge(self.use_global_preset(host, "Stop", environment))
+
+        self.index.unlink()
+        for host in ("codex", "claude"):
+            with self.subTest(host=host):
+                self.assertEqual(self.use_global_preset(host, "UserPromptSubmit", environment), {})
+                self.page.write_text(f"Changed design without an initialized {host} log\n")
+                self.assertEqual(self.use_global_preset(host, "Stop", environment), {})
+        self.assertEqual(list(self.temp.rglob("*.json")), [])
+
+    @unittest.skipUnless(shutil.which("sh"), "example hook configurations require a POSIX shell")
+    def test_claude_global_config_accepts_custom_user_config_directory(self):
+        config_dir = self.temp.parent / "custom claude config"
+        self.install_user_hook(config_dir)
+        environment = {"HOME": str(self.temp.parent / "user home"), "CLAUDE_CONFIG_DIR": str(config_dir)}
+        self.assertEqual(self.use_global_preset("claude", "UserPromptSubmit", environment), {})
+        self.page.write_text("Changed design with custom Claude config\n")
+        self.assert_nudge(self.use_global_preset("claude", "Stop", environment))
+
+    @unittest.skipUnless(shutil.which("sh"), "example hook configurations require a POSIX shell")
+    def test_global_configs_never_fall_back_to_project_scripts(self):
+        user_dir = self.temp.parent / "user home"
+        environment = {"HOME": str(user_dir), "CLAUDE_CONFIG_DIR": ""}
+        for host, location in (("codex", ".agents"), ("claude", ".claude")):
+            with self.subTest(host=host):
+                project_hook = self.root / location / "skills" / "design-receipts" / "hooks" / "nudge.py"
+                project_hook.parent.mkdir(parents=True)
+                project_hook.write_text('raise RuntimeError("ran a project script from a user preset")\n')
+                self.assertEqual(self.use_global_preset(host, "UserPromptSubmit", environment), {})
+                self.page.write_text(f"Changed design without a user-level {host} install\n")
+                self.assertEqual(self.use_global_preset(host, "Stop", environment), {})
+        relative_config = {**environment, "CLAUDE_CONFIG_DIR": ".claude"}
+        self.assertEqual(self.use_global_preset("claude", "UserPromptSubmit", relative_config), {})
+        self.assertEqual(self.use_global_preset("claude", "Stop", relative_config), {})
 
 
 if __name__ == "__main__":

@@ -1,20 +1,30 @@
 # Optional Capture Reminders
 
-Use the skill once to initialize the project’s decision log before enabling reminders. The included commands use a POSIX shell, Git, and `python3` (version 3.10 or newer).
+Reminders are optional. They use a POSIX shell, Git, and `python3` (version 3.10 or newer). Use the skill once to initialize the decision log in each project where you want reminders.
 
-## Claude Code
+## Choose the preset for your skill install
 
-1. Install the skill at `.claude/skills/design-receipts/`.
-2. Merge the two event groups from [claude.json](../hooks/claude.json) into the `hooks` object of `.claude/settings.local.json`. If either event already has entries, append the new group to its array.
-3. Restart Claude Code, trust the project, and inspect the two handlers in `/hooks`. [Claude Code hook setup](https://code.claude.com/docs/en/hooks#hook-locations)
+| Agent | Where the skill is installed | Preset |
+| --- | --- | --- |
+| Claude Code | Project `.claude/skills/design-receipts/` | [claude.json](../hooks/claude.json) |
+| Claude Code | User `~/.claude/skills/design-receipts/` | [claude-global.json](../hooks/claude-global.json) |
+| Codex | Project `.agents/skills/design-receipts/` in the Git root | [codex.json](../hooks/codex.json) |
+| Codex | User `~/.agents/skills/design-receipts/` | [codex-global.json](../hooks/codex-global.json) |
 
-## Codex
+The global presets run the script from your user installation. If you launch Claude Code with an absolute `CLAUDE_CONFIG_DIR`, put the skill in that directory’s `skills/` folder and use its `settings.json` for user-wide reminders. [Claude Code configuration directory](https://code.claude.com/docs/en/env-vars#configuration-and-state)
 
-1. Install the skill at `.agents/skills/design-receipts/` in the Git root.
-2. Merge the two event groups from [codex.json](../hooks/codex.json) into the `hooks` object of `.codex/hooks.json`. If either event already has entries, append the new group to its array. Codex can also load hooks from `.codex/config.toml`. Register each handler in only one place.
-3. Restart Codex, trust the project, and use `/hooks` to review and trust these handlers. [Codex hook setup](https://learn.chatgpt.com/docs/hooks#where-codex-looks-for-hooks)
+## Decide where reminders apply
 
-If you initialized a different decision log directory, add `--log-dir "your/project-relative/path"` after `claude` or `codex` in both commands. To disable reminders, remove the two Design Receipts event groups from the host’s configuration.
+| Agent | This project only | All your projects with a decision log |
+| --- | --- | --- |
+| Claude Code | `.claude/settings.local.json` | `~/.claude/settings.json` |
+| Codex | `.codex/hooks.json` in the Git root | `~/.codex/hooks.json` in the active user configuration directory |
+
+1. Merge the two event groups from your chosen preset into the settings file’s `hooks` object. If either event already has entries, append the Design Receipts group to its array. Use a global preset for a user-wide settings file. You can also use a global preset in one project’s settings to enable reminders there while keeping the skill installed globally.
+2. Register Design Receipts once per agent to avoid duplicate handlers. If you already enabled its project hooks and switch to user-wide reminders, remove those project entries. Codex also accepts hook definitions in `config.toml`. [Claude Code hook locations](https://code.claude.com/docs/en/hooks#hook-locations) · [Codex hook locations](https://learn.chatgpt.com/docs/hooks#where-codex-looks-for-hooks)
+3. Restart the agent and trust the project as prompted. Open `/hooks` to inspect the two handlers. In Codex, review and trust the definitions before running them. [Claude Code workspace trust](https://code.claude.com/docs/en/hooks#workspace-trust) · [Codex hook review](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks)
+
+For a custom decision log directory, use project settings and add `--log-dir "your/project-relative/path"` after `claude` or `codex` in both commands. To disable reminders, remove the two Design Receipts event groups from the settings file where you added them.
 
 ## What the reminder sees
 
