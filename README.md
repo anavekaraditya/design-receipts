@@ -30,6 +30,12 @@ Design Receipts keeps that reasoning while you work. Say one line at the start o
 
 Your agent then logs the decisions that matter, with screenshots as evidence, and waits for your OK before anything counts.
 
+```bash
+npx skills add anavekaraditya/design-receipts
+```
+
+Works with Claude Code, Codex, and Cursor. [Install options](#install)
+
 ## How it works
 
 <img width="1500" alt="Three steps. Capture: you talk through a choice and the agent captures before-and-after screenshots. Confirm: a proposed decision record waits for your one-line OK. Compile: confirmed decisions become a case study and PDF." src="docs/images/how-it-works.png" />
@@ -43,63 +49,42 @@ Your agent then logs the decisions that matter, with screenshots as evidence, an
 
 Everything stays in plain Markdown inside your project. No account, no service, no database.
 
-## Quick start
+## Install
 
-You need a Git project, Python 3.10 or newer, and Claude Code, Codex, or Cursor.
-
-### Install once for all your projects (recommended)
-
-```sh
-git clone https://github.com/anavekaraditya/design-receipts.git "$HOME/design-receipts-src"
-cd "$HOME/design-receipts-src"
+```bash
+npx skills add anavekaraditya/design-receipts
 ```
 
-<details open>
-<summary><b>Claude Code</b></summary>
+The installer asks which coding tools to set up and whether to install for this project or for all your projects. Then start a new chat and invoke `/design-receipts` (`$design-receipts` in Codex).
 
-```sh
-mkdir -p "$HOME/.claude/skills"
-cp -R skills/design-receipts "$HOME/.claude/skills/"
-```
+You need Python 3.10+ in a Git project. Node is only used to run `npx`.
 
-</details>
+| To | Run |
+| --- | --- |
+| Update to the latest version | `npx skills update` |
+| Remove the skill | `npx skills remove design-receipts` |
 
 <details>
-<summary><b>Codex or Cursor</b></summary>
+<summary><b>Manual install, no Node required</b></summary>
 
-```sh
-mkdir -p "$HOME/.agents/skills"
-cp -R skills/design-receipts "$HOME/.agents/skills/"
+Clone this repository and copy the skill folder into your tool's skills folder.
+
+```bash
+git clone https://github.com/anavekaraditya/design-receipts.git
 ```
 
-</details>
+| Tool | This project only | All your projects |
+| --- | --- | --- |
+| Claude Code | `.claude/skills/` | `~/.claude/skills/` |
+| Codex, Cursor | `.agents/skills/` | `~/.agents/skills/` |
 
-Start a new chat in any Git project and invoke `/design-receipts` in Claude Code and Cursor, or `$design-receipts` in Codex. Each project keeps its own decision log. [Claude Code skill locations](https://code.claude.com/docs/en/skills#choose-where-skills-load) · [Codex skill locations](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) · [Cursor skill locations](https://cursor.com/docs/skills#skill-directories)
+For example, for Claude Code across all your projects:
 
-<details>
-<summary><b>Install in a single project instead</b></summary>
-
-From the root of the project you're building, clone the skill beside it:
-
-```sh
-git clone https://github.com/anavekaraditya/design-receipts.git ../design-receipts-src
+```bash
+mkdir -p ~/.claude/skills && cp -R design-receipts/skills/design-receipts ~/.claude/skills/
 ```
 
-**Claude Code**
-
-```sh
-mkdir -p .claude/skills
-cp -R ../design-receipts-src/skills/design-receipts .claude/skills/
-```
-
-**Codex or Cursor**
-
-```sh
-mkdir -p .agents/skills
-cp -R ../design-receipts-src/skills/design-receipts .agents/skills/
-```
-
-Open a new agent chat in that project and invoke the skill.
+To update a manual install, run `git pull` in the clone and copy the folder again. [Claude Code skill locations](https://code.claude.com/docs/en/skills#choose-where-skills-load) · [Codex skill locations](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) · [Cursor skill locations](https://cursor.com/docs/skills#skill-directories)
 
 </details>
 
@@ -156,8 +141,8 @@ Claude Code and Codex can also show an optional reminder when a turn changes pro
 ## Privacy, updates, and removal
 
 - **Private by default.** New logs, screenshots, and default drafts are Git-ignored. Use `init --track` to put a new log under version control. Review the text and images before sharing, and keep secrets and personal data out of the record. Your agent handles conversation and decision text according to its own data settings.
-- **Update.** Run `git pull --ff-only` in your checkout of this repository and replace the installed skill folder with the refreshed copy. Start a new agent chat to load it.
-- **Uninstall.** Remove any [reminders you installed](skills/design-receipts/references/hooks.md) and delete the installed `design-receipts` skill folder. Your decision log and images stay in your project.
+- **Update.** Run `npx skills update`, then start a new agent chat to load the new version.
+- **Uninstall.** Remove any [reminders you installed](skills/design-receipts/references/hooks.md), then run `npx skills remove design-receipts`. Your decision log and images stay in your project.
 
 ## Preview status
 
