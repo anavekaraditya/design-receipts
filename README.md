@@ -2,6 +2,8 @@
 
 An agent skill for designers who build with AI. It captures the reasoning behind a design change, saves screenshots from the running app, and turns confirmed decisions into a portfolio case-study draft with links to the evidence.
 
+![Three pages of an exported case study: a blue cover titled “Routeboard: arrivals without the clutter”, a before-and-after pair of app screenshots, and the decision sources they cite.](docs/images/pdf-preview.png)
+
 > **Keep a decision trail as we build.**
 
 Say this at the start of a build session.
@@ -69,7 +71,7 @@ Start a new chat in any Git project and invoke the skill there. Each project kee
 
 In **Routeboard**, a fictional transit app, the AI suggested showing live arrivals under every stop. The designer chose to reveal them on tap so the stop names would be easier to scan. The trade-off was one extra tap.
 
-The [decision record](examples/routeboard/decisions/1-reveal-arrivals-on-tap.md) keeps that reasoning with the project. Later, the draft uses it to tell the story.
+The [decision record](examples/routeboard/decisions/1-reveal-arrivals-on-tap.md) keeps that reasoning with the project, along with [before](examples/routeboard/decisions/events/1-screenshot-1/image.png) and [after](examples/routeboard/decisions/events/2-screenshot-1/image.png) screenshots captured from a [small prototype](examples/routeboard/prototype/stops/index.html). Later, the draft uses it to tell the story.
 
 > The route list needed to stay easy to scan. I chose to put arrival predictions behind a tap to give stop names more room, accepting one additional step to check the next arrival. [Decision 1](examples/routeboard/decisions/1-reveal-arrivals-on-tap.md)
 
@@ -106,6 +108,6 @@ PDF export uses a local Node.js, Playwright, and Chromium setup. It saves a new 
 
 ## Preview status
 
-The capture, confirmation, and compile workflow was tested in Codex and Cursor. Browser screenshots were verified with a live Chromium run. Claude Code discovered the skill and ran the prompt hook. A signed-in Claude session is still needed to verify the complete flow.
+The capture, confirmation, and compile workflow was tested end to end in Codex, Cursor, and Claude Code. Browser screenshots and PDF export were verified with a live Chromium run. Claude Code also ran the prompt hook.
 
 Run the local checks with `python3 -SB -m unittest discover -s tests -v`. [Changelog](CHANGELOG.md) · [MIT License](LICENSE) · [Report a workflow issue](https://github.com/anavekaraditya/design-receipts/issues)

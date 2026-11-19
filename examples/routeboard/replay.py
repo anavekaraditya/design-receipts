@@ -8,6 +8,7 @@ import sys
 
 
 EXAMPLE = Path(__file__).resolve().parent
+CAPTURES = EXAMPLE / "captures"
 CLI = EXAMPLE.parents[1] / "skills/design-receipts/scripts/receipts.py"
 
 INITIAL = {
@@ -77,6 +78,15 @@ def run_receipts(project, *arguments, payload=None):
     )
 
 
+def attach(project, number, filename, state, day, caption):
+    """Captured from prototype/stops with the skill's capture helper at 390x844."""
+    run_receipts(
+        project, "attach-screenshot", number, str(CAPTURES / filename),
+        "--state", state, "--route", "/stops/", "--viewport", "390x844",
+        "--date", day, "--caption", caption,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("project", type=Path, help="Path for a new, empty example project")
@@ -88,7 +98,11 @@ def main():
     run_receipts(project, "init", "--track")
     run_receipts(project, "capture", payload=INITIAL)
     run_receipts(project, "accept", "1", "--confirmed")
+    attach(project, "1", "inline-arrivals.png", "before", "2026-11-05", "Every stop shows three arrival predictions inline")
+    attach(project, "1", "collapsed-stops.png", "after", "2026-11-05", "Stop names only; arrivals open on tap")
     run_receipts(project, "capture", "--confirmed", "--supersedes", "1", payload=SUCCESSOR)
+    attach(project, "2", "collapsed-stops.png", "before", "2026-11-07", "The selected stop looks like every other row")
+    attach(project, "2", "selected-stop.png", "after", "2026-11-07", "Next arrival shows only on the selected stop row")
     run_receipts(project, "outcome", "2", "--confirmed", payload=OUTCOME)
     run_receipts(project, "capture", payload=PROPOSAL)
     run_receipts(project, "validate")

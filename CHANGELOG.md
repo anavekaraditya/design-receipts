@@ -6,6 +6,9 @@
 - Let a narrative choose featured decisions and screenshot events, with a single visible note for missing outcomes.
 - Pair matching before-and-after screens, compact source notes, and flow evidence across pages in the PDF.
 - Add a linked contents page to archive PDFs and guidance for reconciling later choices with older records and screenshots.
+- Use the narrative `title` in archive drafts and stop repeating rejection reasons under “How AI was used”.
+- Let the PDF closing section flow after the content instead of forcing a separate, partly empty page.
+- Add before-and-after screenshots to the Routeboard example, captured from a bundled static prototype.
 
 ## v0.1.0 preview
 

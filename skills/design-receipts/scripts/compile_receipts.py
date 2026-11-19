@@ -260,7 +260,6 @@ def render_draft(packet, narrative, root, target):
         ai.append(f"**{record['title']}** · {', '.join(roles)}. {link}")
         if any(role.casefold() == "overruled by human" for role in roles):
             ai.append(sourced_field(f"**Human overrule.** {record['decision']}", link))
-            ai.append(sourced_field(record["rejections"], link))
 
         observed = record.get("outcome", "").strip()
         if has_outcome(observed):
@@ -279,7 +278,8 @@ def render_draft(packet, narrative, root, target):
         latest = receipt_link(record["id"])
         reflection.append(f"What changed your judgment between {earlier} and {latest}?")
 
-    blocks = ["# Case study draft", "> Draft from confirmed design decisions. Curate before sharing."]
+    title = narrative.get("title", "Case study draft")
+    blocks = [f"# {title}", "> Draft from confirmed design decisions. Curate before sharing."]
     scope = [f"{key} `{value.replace('`', '')}`" for key, value in packet["filters"].items() if value]
     if scope:
         blocks.append("Selection · " + " · ".join(scope))

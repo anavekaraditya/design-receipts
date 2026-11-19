@@ -156,7 +156,7 @@ figcaption strong { color: var(--ink); font-weight: 500; }
   .story .source-field h4 { margin-bottom: 1mm; }
   .story .source-field p, .story .source-field li { font-size: 9.5pt; line-height: 1.4; }
   .archive .contents { break-after: page; }
-  .story .closing { break-before: page; min-height: 246mm; padding: 18mm; display: flex; flex-direction: column; justify-content: center; }
+  .story .closing { margin-top: 10mm; padding: 14mm 16mm; break-inside: avoid; }
   .story .closing h2 { font-size: 29pt; margin: 0 0 5mm; }
   .story .closing h2:not(:first-child) { margin-top: 16mm; }
   .story .closing p { font-size: 13.5pt; line-height: 1.5; max-width: 36ch; }

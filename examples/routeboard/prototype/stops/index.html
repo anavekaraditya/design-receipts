@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Routeboard · Stops</title>
+<style>
+  :root {
+    --bg: #f6f7f4; --surface: #ffffff; --ink: #18202e; --muted: #687387; --rule: #e3e6ec;
+    --accent: #2f6b4f; --accent-soft: #e6f1eb; --badge: #18202e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { padding: 28px 20px 16px; }
+  .eyebrow { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .route { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--badge); color: #fff; font-size: 14px; letter-spacing: 0; }
+  h1 { margin: 10px 0 4px; font-size: 26px; letter-spacing: -.02em; }
+  .sub { margin: 0; color: var(--muted); font-size: 15px; }
+  .search { margin: 18px 0 0; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 15px; }
+  ol { list-style: none; margin: 8px 16px 24px; padding: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; overflow: hidden; }
+  li { position: relative; padding: 16px 16px 16px 44px; border-top: 1px solid var(--rule); }
+  li:first-child { border-top: 0; }
+  li::before { content: ""; position: absolute; left: 20px; top: 0; bottom: 0; width: 2px; background: var(--rule); }
+  li::after { content: ""; position: absolute; left: 15px; top: 21px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--muted); }
+  li:first-child::before { top: 27px; }
+  li:last-child::before { bottom: calc(100% - 27px); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .name { font-size: 17px; font-weight: 600; }
+  .chev { color: var(--muted); font-size: 18px; }
+  .times { margin-top: 6px; color: var(--muted); font-size: 14px; }
+  .times b { color: var(--ink); font-weight: 600; }
+  .next { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 14px; font-weight: 600; }
+  .next::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  li.selected { background: #fbfcfa; }
+  li.selected::after { background: var(--accent); border-color: var(--accent); }
+  .tag { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  /* Variants: inline arrivals everywhere, collapsed rows, or one arrival on the selected row. */
+  body:not([data-variant="inline"]) .times { display: none; }
+  body:not([data-variant="selected"]) .next, body:not([data-variant="selected"]) .tag { display: none; }
+  body[data-variant="selected"] .selected-chev { display: none; }
+  body:not([data-variant="selected"]) li.selected { background: transparent; }
+  body:not([data-variant="selected"]) li.selected::after { background: var(--surface); border-color: var(--muted); }
+</style>
+</head>
+<body data-variant="collapsed">
+<header>
+  <div class="eyebrow"><span class="route">14</span> Northbound</div>
+  <h1>Harbor Line</h1>
+  <p class="sub">8 stops · every 6 min</p>
+  <div class="search">Find a stop</div>
+</header>
+<ol>
+  <li><div class="row"><span class="name">Pier Street</span><span class="chev">›</span></div><div class="times"><b>2 min</b> · 8 min · 14 min</div></li>
+  <li><div class="row"><span class="name">Market Hall</span><span class="chev">›</span></div><div class="times"><b>4 min</b> · 10 min · 16 min</div></li>
+  <li class="selected"><div class="row"><span class="name">Civic Library</span><span class="tag">Your stop</span><span class="chev selected-chev">›</span></div><div class="times"><b>6 min</b> · 12 min · 18 min</div><div class="next">Next bus in 6 min</div></li>
+  <li><div class="row"><span class="name">Fern Avenue</span><span class="chev">›</span></div><div class="times"><b>9 min</b> · 15 min · 21 min</div></li>
+  <li><div class="row"><span class="name">Riverside Park</span><span class="chev">›</span></div><div class="times"><b>11 min</b> · 17 min · 23 min</div></li>
+  <li><div class="row"><span class="name">Old Mill Road</span><span class="chev">›</span></div><div class="times"><b>14 min</b> · 20 min · 26 min</div></li>
+  <li><div class="row"><span class="name">Hillcrest</span><span class="chev">›</span></div><div class="times"><b>16 min</b> · 22 min · 28 min</div></li>
+  <li><div class="row"><span class="name">North Terminal</span><span class="chev">›</span></div><div class="times"><b>19 min</b> · 25 min · 31 min</div></li>
+</ol>
+<script>
+  // Keys 1–3 switch between the designs compared in the example decisions.
+  const variants = { "1": "inline", "2": "collapsed", "3": "selected" };
+  document.addEventListener("keydown", (event) => {
+    if (variants[event.key]) document.body.dataset.variant = variants[event.key];
+  });
+</script>
+</body>
+</html>

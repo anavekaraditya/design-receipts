@@ -105,6 +105,15 @@ class CompileTests(unittest.TestCase):
         self.assertIn("When is a route filter more useful than a sort? [Decision 2]", draft)
         self.assertNotIn("## Visual evidence", draft)
 
+    def test_archive_uses_narrative_title_and_states_each_rejection_once(self):
+        output = self.run_action("compile", "--narrative", "-", stdin=json.dumps({"title": "Arrivals at a glance"}))
+        draft = Path(output).read_text(encoding="utf-8")
+        self.assertTrue(draft.startswith("# Arrivals at a glance\n"))
+        self.assertEqual(draft.count("Rejected clock time because related arrivals split up."), 1)
+        ai_section = draft.split("## How AI was used", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("**Human overrule.**", ai_section)
+        self.assertNotIn("Rejected clock time", ai_section)
+
     def test_combines_filters_and_includes_older_history(self):
         filters = ("--from", "2026-11-16", "--to", "2026-11-16", "--status", "accepted", "--keyword", "HALLWAY TEST")
         packet = json.loads(self.run_action("evidence", *filters))

@@ -2,6 +2,8 @@
 
 Routeboard is a fictional transit app. The [decision log](decisions/README.md) and [case-study draft](case-study.md) show how one design choice changed as the designer worked through a prototype.
 
+The screenshots come from a small static [prototype](prototype/stops/index.html) of the stop list. Open it in a browser and press 1, 2 or 3 to switch between inline arrivals, collapsed stops, and the selected-stop design. The checked-in captures in [captures/](captures/) were taken from it with the skill's capture helper at 390×844.
+
 ## Try it with your agent
 
 Install the skill in a scratch Git project, invoke it, and work through these prompts. Confirm each proposed decision when it matches the decision.
