@@ -63,7 +63,7 @@ Start a new chat in any Git project and invoke the skill there. Each project kee
 
 1. **Start before editing.** Use the prompt above while the old UI is still available. For a visible change in a runnable web app, the agent can start or reuse the local dev server and capture the same screen or interaction before and after the edit. If the earlier state is already gone, the agent can still attach the after screenshot. [Browser setup and capture guide](skills/design-receipts/references/screenshots.md)
 2. **Build as usual.** Talk through choices in the chat. When a meaningful decision comes up, the agent saves a proposed decision record with the choice, rejected alternatives, trade-offs, AI’s role, and any screenshots it captured. Confirm or correct the proposal in one reply. If you only want to capture one decision, say **“Log this decision”** and describe what you chose and why.
-3. **Ask for a draft when you need one.** Say **“Compile my confirmed decisions into a case-study draft.”** The Markdown draft links back to the decisions and screenshots. Look for `[verify]` where the evidence leaves a gap, such as an outcome you haven’t measured.
+3. **Ask for a draft when you need one.** Say **“Make a concise case study from the most important confirmed decisions.”** The agent chooses the decisions and screenshots that tell the story, then gives you an editable Markdown draft. It links back to the original records and marks unmeasured results `[verify]`. Ask for a **full archive** when you want every record and screenshot.
 
 ## See what a decision record looks like
 
@@ -84,16 +84,17 @@ Open `docs/decisions/README.md` for an index of decisions and their screenshots.
 | See what needs your attention | “Show me the decisions waiting for confirmation.” |
 | Preserve a change of direction | “We changed course. Record what replaced Decision 1 and why.” |
 | Add something you learned later | “Add this usability test finding to Decision 1.” |
-| Draft a focused case study | “Compile only the decisions about onboarding.” |
+| Draft a focused case study | “Tell the onboarding story with the best before-and-after screenshots.” |
+| Keep the complete trail | “Compile the full decision archive.” |
 | Get a document to share | “Export my case-study draft as a PDF with the screenshots.” |
 
 Codex and Claude Code can also show an optional reminder when a turn changes project files. Enable it in one project or across your projects with a decision log. [Reminder setup](skills/design-receipts/references/hooks.md)
 
 ## Export your documentation
 
-Ask **“Export my case-study draft as a PDF.”** The agent exports your edited Markdown draft with its screenshots, captions, and decision citations. The PDF includes the referenced evidence so it can be read outside your project. `[verify]` gaps stay visible for you to fill.
+Ask **“Export my case-study draft as a PDF.”** The agent exports your edited Markdown draft with its selected screenshots, captions, and decision citations. The default PDF includes compact source notes for the cited decisions. Ask for the **archive edition** to include every referenced record field. `[verify]` gaps stay visible for you to fill.
 
-The PDF uses a blue cover, readable type, generous spacing, and captioned screenshots. Its fonts are included for consistent export across projects.
+The PDF uses a blue cover, readable type, generous spacing, and captioned screenshots. Matching before and after states sit together. Its fonts are included for consistent export across projects.
 
 PDF export uses a local Node.js, Playwright, and Chromium setup. It saves a new file in `docs/decisions/drafts/` by default. You can ask for a different filename or destination. [PDF export guide](skills/design-receipts/references/export.md)
 

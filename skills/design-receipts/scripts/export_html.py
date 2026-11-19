@@ -77,10 +77,14 @@ mark { color: #754813; background: #fff0c9; padding: 0.05em 0.2em; }
 .captures { margin-top: 3rem; }
 .captures > h2, .evidence > h2 { font: italic 2rem/1.25 var(--editorial-font); letter-spacing: -0.035em; margin: 0 0 1.8rem; }
 figure { margin: 0 0 2rem; break-inside: avoid; }
-figure img { display: block; width: 100%; height: auto; max-height: 38rem; object-fit: contain; object-position: left; border: 0.5px solid var(--rule); }
+figure img { display: block; width: auto; height: auto; max-width: 100%; max-height: 38rem; object-fit: contain; border: 0.5px solid var(--rule); }
+.capture-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; break-inside: avoid; }
+.capture-portrait { display: grid; grid-template-columns: minmax(0, 55%) 1fr; gap: 1.5rem; align-items: start; }
+.capture-pair img { max-width: 100%; }
+.capture-pair .capture-portrait { display: block; }
 figcaption { color: var(--secondary); font-size: 0.8rem; line-height: 1.5; margin-top: 0.6rem; overflow-wrap: anywhere; }
 figcaption strong { color: var(--ink); font-weight: 500; }
-.source { margin: 2.5rem 0 0; }
+.source { margin: 2.5rem 0 0; break-inside: avoid-page; }
 .source-heading { margin-bottom: 1.7rem; padding-top: 0.8rem; border-top: 0.5px solid var(--rule); }
 .source-heading h3 { margin: 0.6rem 0 0.8rem; font-size: 1.9rem; line-height: 1.15; font-weight: 500; letter-spacing: -0.04em; }
 .source-number { font-size: 0.8rem; color: var(--accent); font-weight: 500; }
@@ -92,6 +96,14 @@ figcaption strong { color: var(--ink); font-weight: 500; }
 .source-event h4 { font-size: 1rem; margin: 0 0 0.5rem; }
 .source-event .metadata { margin-bottom: 0.8rem; }
 .evidence { margin-top: 3rem; }
+.contents { padding: 0 0 2rem; }
+.contents ul { list-style: none; padding: 0; max-width: none; }
+.contents li { border-bottom: 0.5px solid var(--rule); padding: 0.45rem 0; margin: 0; }
+.contents a { text-decoration: none; }
+.closing { background: #4358d4; color: #fafcf5; padding: 3rem; }
+.closing a { color: #fafcf5; }
+.closing mark { background: #ffebbb; color: #55391a; }
+.closing h2 { font: italic 2rem/1.2 var(--editorial-font); }
 @page {
   size: A4;
   margin: 19mm 22mm 22mm;
@@ -122,9 +134,14 @@ figcaption strong { color: var(--ink); font-weight: 500; }
   .captures > h2, .evidence > h2 { font-size: 28pt; margin: 0 0 8mm; }
   figure { margin-bottom: 8mm; }
   figure img { max-height: 177mm; }
+  .capture-pair { gap: 5mm; margin-bottom: 8mm; }
+  .capture-pair figure { margin: 0; }
+  .capture-pair img { max-height: 166mm; }
+  .capture-portrait { gap: 8mm; }
+  .capture-portrait img { max-height: 177mm; }
   figcaption { font-size: 9.5pt; margin-top: 3mm; }
   .source { margin-top: 0; }
-  .source + .source { break-before: page; }
+  .source + .source { border-top: 0.5px solid var(--rule); padding-top: 5mm; }
   .source-heading { margin-bottom: 8mm; padding-top: 4mm; }
   .source-heading h3 { font-size: 23pt; margin: 3mm 0 4mm; }
   .source-number, .metadata { font-size: 9.5pt; }
@@ -132,6 +149,17 @@ figcaption strong { color: var(--ink); font-weight: 500; }
   .source-field h4 { font-size: 8.5pt; margin-bottom: 2mm; }
   .source-event { margin: 7mm 0; padding-top: 5mm; }
   .source-event h4 { font-size: 12.5pt; }
+  .story .source { margin-top: 8mm; }
+  .story .source-heading { margin-bottom: 4mm; }
+  .story .source-heading h3 { font-size: 17pt; }
+  .story .source-field { margin-bottom: 3mm; }
+  .story .source-field h4 { margin-bottom: 1mm; }
+  .story .source-field p, .story .source-field li { font-size: 9.5pt; line-height: 1.4; }
+  .archive .contents { break-after: page; }
+  .story .closing { break-before: page; min-height: 246mm; padding: 18mm; display: flex; flex-direction: column; justify-content: center; }
+  .story .closing h2 { font-size: 29pt; margin: 0 0 5mm; }
+  .story .closing h2:not(:first-child) { margin-top: 16mm; }
+  .story .closing p { font-size: 13.5pt; line-height: 1.5; max-width: 36ch; }
   .evidence { margin-top: 0; }
   .evidence { break-before: page; }
 }
@@ -170,7 +198,10 @@ def heading_anchor(text):
 
 
 class ExportDocument:
-    def __init__(self, source_path, records, events):
+    def __init__(self, source_path, records, events, edition="story"):
+        if edition not in ("story", "archive"):
+            raise ValueError("Edition must be story or archive")
+        self.edition = edition
         self.source_path = Path(source_path).resolve()
         self.records = {key: value for key, value in records.items() if value["status"] == "accepted"}
         self.events = {event["id"]: event for event in events if event["record_id"] in self.records}
@@ -182,6 +213,7 @@ class ExportDocument:
         self.used_records = set()
         self.used_events = set()
         self.used_images = set()
+        self.image_order = []
         self.heading_counts = {}
 
     def link(self, label, destination, *, evidence=False):
@@ -221,6 +253,8 @@ class ExportDocument:
             self.used_events.add(identifier)
             if kind == "screenshot" or event["kind"] == "screenshot":
                 self.used_images.add(identifier)
+                if identifier not in self.image_order:
+                    self.image_order.append(identifier)
                 anchor = f"capture-{identifier}"
             else:
                 anchor = f"event-{identifier}"
@@ -332,22 +366,35 @@ class ExportDocument:
 
     def screenshots(self):
         figures = []
-        for identifier in sorted(self.used_images, key=int):
+        def figure(identifier):
             event = self.events[identifier]
             image = event["image_path"]
-            png_dimensions(image)
+            width, height = (int(value) for value in png_dimensions(image).split("x"))
             encoded = base64.b64encode(image.read_bytes()).decode("ascii")
             description = f"{event['state'].capitalize()} · {event['route']} · {event['viewport']} · {event['date']}"
             caption = escape(event["text"])
             record_id = event["record_id"]
-            figures.append(
-                f'<figure id="capture-{identifier}"><img src="data:image/png;base64,{encoded}" alt="{caption}">'
+            shape = ' class="capture-portrait"' if width < height * 0.8 else ""
+            return (
+                f'<figure id="capture-{identifier}"{shape}><img src="data:image/png;base64,{encoded}" alt="{caption}">'
                 f'<figcaption><strong>{caption}</strong><br>{escape(description)} · '
                 f'<a href="#receipt-{record_id}">Decision {display_id(record_id)}</a></figcaption></figure>'
             )
+        index = 0
+        while index < len(self.image_order):
+            first = self.events[self.image_order[index]]
+            next_event = self.events[self.image_order[index + 1]] if index + 1 < len(self.image_order) else None
+            if (next_event and (first["state"], next_event["state"]) in (("before", "after"), ("after", "after"))
+                    and first["record_id"] == next_event["record_id"]
+                    and first["route"] == next_event["route"]):
+                figures.append('<div class="capture-pair">' + figure(first["id"]) + figure(next_event["id"]) + '</div>')
+                index += 2
+            else:
+                figures.append(figure(first["id"]))
+                index += 1
         if not figures:
             return ""
-        return '<section class="captures" aria-label="Captured states"><h2>Captured states</h2>' + "\n".join(figures) + "</section>"
+        return '<section class="captures" id="captured-states" aria-label="Captured states"><h2>Captured states</h2>' + "\n".join(figures) + "</section>"
 
     def cover(self, heading):
         metadata = ""
@@ -371,7 +418,14 @@ class ExportDocument:
         for identifier in sorted(self.used_records, key=int):
             record = self.records[identifier]
             fields = []
-            for field, heading in SECTIONS.items():
+            if self.edition == "archive":
+                included = SECTIONS.items()
+            else:
+                keys = ("decision", "rejections", "tradeoffs") if "Overruled by human" in record["ai_roles"] else (
+                    "decision", "tradeoffs"
+                )
+                included = ((key, SECTIONS[key]) for key in keys)
+            for field, heading in included:
                 if record.get(field):
                     fields.append(
                         '<div class="source-field">'
@@ -399,15 +453,34 @@ class ExportDocument:
             )
         if not sources:
             return ""
-        return '<section class="evidence" aria-label="Source evidence"><h2>Source evidence</h2>' + "\n".join(sources) + "</section>"
+        heading = "Source evidence" if self.edition == "archive" else "Decision sources · abridged"
+        return f'<section class="evidence" id="decision-sources" aria-label="{heading}"><h2>{heading}</h2>' + "\n".join(sources) + "</section>"
+
+    def contents(self, body):
+        if self.edition != "archive":
+            return ""
+        sections = re.findall(r'<h2 id="([^"]+)">(.+?)</h2>', body)
+        links = [f'<li><a href="#{anchor}">{title}</a></li>' for anchor, title in sections]
+        if self.used_images:
+            links.append('<li><a href="#captured-states">Captured states</a></li>')
+        if self.used_records:
+            links.append('<li><a href="#decision-sources">Source evidence</a></li>')
+        return '<nav class="contents" aria-label="Contents"><h2>Contents</h2><ul>' + ''.join(links) + '</ul></nav>'
 
 
-def render_export(source, source_path, records, events, title=None):
+def render_export(source, source_path, records, events, title=None, edition="story"):
     """Preserve the edited draft and embed only the evidence its links reference."""
-    document = ExportDocument(source_path, records, events)
+    document = ExportDocument(source_path, records, events, edition=edition)
     first_heading = next((line[2:] for line in source.splitlines() if line.startswith("# ")), None)
     document_title = title or first_heading or "Design Receipts"
     body = document.markdown(source)
+    if edition == "story":
+        capture_index = re.search(
+            r'<h2 id="section-visual-evidence">Visual evidence</h2>\s*(<ul>.*?</ul>)',
+            body, flags=re.DOTALL,
+        )
+        if capture_index and capture_index[1].count("<li>") == capture_index[1].count('href="#capture-'):
+            body = body[:capture_index.start()] + body[capture_index.end():]
     heading = re.search(r"<h1\b[^>]*>.*?</h1>", body)
     if heading:
         cover_heading = heading[0]
@@ -417,10 +490,16 @@ def render_export(source, source_path, records, events, title=None):
     cover = document.cover(cover_heading)
     screenshots = document.screenshots()
     appendix = document.appendix()
+    if edition == "story":
+        closing = re.search(r'<h2 id="section-(?:outcomes-and-limits|outcomes|reflection)"', body)
+        if closing:
+            body = body[:closing.start()] + screenshots + '<section class="closing">' + body[closing.start():] + '</section>'
+            screenshots = ""
+    contents = document.contents(body)
     return (
         '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data:; font-src data:; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'">'
         f"<title>{escape(document_title)}</title><style>{font_styles()}\n{STYLES}</style></head>"
-        f'<body>{cover}<main class="report">{body}\n{screenshots}\n{appendix}</main></body></html>\n'
+        f'<body class="{edition}">{cover}<main class="report">{contents}\n{body}\n{screenshots}\n{appendix}</main></body></html>\n'
     )

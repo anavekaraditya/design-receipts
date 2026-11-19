@@ -18,6 +18,8 @@ def add_export_command(subparsers):
     command.add_argument("draft", type=Path, help="Markdown draft relative to the project, or absolute")
     command.add_argument("--output", type=Path, help="PDF path relative to the project, or absolute")
     command.add_argument("--overwrite", action="store_true", help="replace this PDF after designer confirmation")
+    command.add_argument("--edition", choices=("story", "archive"), default="story",
+                         help="Concise source notes (default) or complete evidence archive")
     command.add_argument("--playwright-module", type=Path, help="absolute path to an installed Playwright package")
     command.add_argument("--browser-executable", type=Path, help="path to an installed compatible Chromium")
     command.set_defaults(handler=export_pdf)
@@ -68,7 +70,7 @@ def export_pdf(args, root, log):
         raise ValueError(f"PDF already exists at {target}. Choose a new path or confirm replacement.")
 
     records, events = read_log(log)
-    html = render_export(content, source, records, events)
+    html = render_export(content, source, records, events, edition=args.edition)
     with tempfile.TemporaryDirectory(prefix="design-receipts-export-") as directory:
         document = print_pdf(html, Path(directory), root, args)
     written = install_draft(target, document, args.overwrite, increment=args.output is None)

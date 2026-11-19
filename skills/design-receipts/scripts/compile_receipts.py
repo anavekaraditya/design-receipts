@@ -31,6 +31,8 @@ def add_commands(subparsers):
         command.add_argument("--status", choices=CONFIRMED_STATUSES)
         command.add_argument("--keyword", help="Match a phrase in the record or its outcome notes")
     compile_command.add_argument("--narrative", help="Read narrative JSON from a file or '-' for stdin")
+    compile_command.add_argument("--edition", choices=("story", "archive"), default="story",
+                                 help="Concise case study (default) or complete decision archive")
     compile_command.add_argument("--output", help="Choose an output path relative to the project, or absolute")
     compile_command.add_argument("--overwrite", action="store_true", help="Replace the chosen draft with approval")
 
@@ -106,9 +108,10 @@ def paragraph_text(value, name):
     return value.strip()
 
 
-def validate_narrative(narrative, allowed_ids):
-    if not isinstance(narrative, dict) or set(narrative) - {*NARRATIVE_SECTIONS, "themes"}:
-        raise ValueError("Narrative keys must be overview, problem, constraints, or themes")
+def validate_narrative(narrative, allowed_ids, selected_ids=None, screenshot_ids=None):
+    permitted = {*NARRATIVE_SECTIONS, "themes", "title", "focus", "captures", "reflection"}
+    if not isinstance(narrative, dict) or set(narrative) - permitted:
+        raise ValueError("Narrative keys must be overview, problem, constraints, themes, title, focus, captures, or reflection")
 
     def check_paragraphs(paragraphs):
         if not isinstance(paragraphs, list) or not paragraphs:
@@ -133,6 +136,32 @@ def validate_narrative(narrative, allowed_ids):
         return result
 
     result = {name: check_paragraphs(narrative[name]) for name in NARRATIVE_SECTIONS if name in narrative}
+    if "reflection" in narrative:
+        result["reflection"] = check_paragraphs(narrative["reflection"])
+    if "title" in narrative:
+        result["title"] = paragraph_text(narrative["title"], "Title")
+    if "focus" in narrative:
+        focus = narrative["focus"]
+        if not isinstance(focus, list) or not focus:
+            raise ValueError("Focus must be a non-empty list of confirmed decision IDs")
+        try:
+            normalized = [canonical_id(item) for item in focus]
+        except ValueError:
+            raise ValueError("Focus must be a non-empty list of confirmed decision IDs") from None
+        if selected_ids is None or any(item not in selected_ids for item in normalized):
+            raise ValueError("Focus IDs must be selected confirmed decisions")
+        result["focus"] = list(dict.fromkeys(normalized))
+    if "captures" in narrative:
+        captures = narrative["captures"]
+        if not isinstance(captures, list):
+            raise ValueError("Captures must be a list of screenshot event IDs")
+        try:
+            normalized = [canonical_id(item) for item in captures]
+        except ValueError:
+            raise ValueError("Captures must be a list of screenshot event IDs") from None
+        if screenshot_ids is None or any(item not in screenshot_ids for item in normalized):
+            raise ValueError("Captures must reference screenshots in the evidence packet")
+        result["captures"] = list(dict.fromkeys(normalized))
     if "themes" in narrative:
         themes = narrative["themes"]
         if not isinstance(themes, list) or not themes:
@@ -273,6 +302,121 @@ def render_draft(packet, narrative, root, target):
     return "\n\n".join(blocks) + "\n"
 
 
+def render_story_draft(packet, narrative, root, target):
+    """A selective, sourced reading of the log; the archive retains every field."""
+    all_records = {record["id"]: record for record in (*packet["selected"], *packet["history"])}
+    focus_ids = narrative.get("focus") or [
+        record["id"] for record in packet["selected"] if record["effective_status"] == "accepted"
+    ]
+    if not focus_ids:
+        focus_ids = [record["id"] for record in packet["selected"]]
+    focus = [all_records[key] for key in focus_ids]
+
+    def link(key):
+        return source_link(f"Decision {display_id(key)}", root / all_records[key]["path"], target.parent)
+
+    def paragraphs(items):
+        return [" ".join((prose, *(link(key) for key in ids))) for prose, ids in items]
+
+    title = narrative.get("title", "Case study draft")
+    blocks = [f"# {title}"]
+    scope = [f"{key} `{value.replace('`', '')}`" for key, value in packet["filters"].items() if value]
+    if scope:
+        blocks.append("Selection · " + " · ".join(scope))
+    if "overview" in narrative:
+        blocks.extend(["## Overview", *paragraphs(narrative["overview"])])
+    else:
+        blocks.extend(["## Overview", "[verify] Add the project, audience, your role, and the reason for this work."])
+    if "problem" in narrative:
+        blocks.extend(["## Problem", *paragraphs(narrative["problem"])])
+    else:
+        blocks.extend(["## Problem", sourced_field(focus[0]["context"], link(focus[0]["id"]))])
+    if "constraints" in narrative:
+        blocks.extend(["## Constraints", *paragraphs(narrative["constraints"])])
+
+    blocks.append("## Decisions and trade-offs")
+    if "themes" in narrative:
+        for heading, items in narrative["themes"]:
+            blocks.extend([f"### {heading}", *paragraphs(items)])
+    else:
+        for record in focus:
+            blocks.extend([
+                f"### {record['title']}",
+                sourced_field(record["decision"], link(record["id"])),
+                sourced_field(f"**Cost accepted:** {record['tradeoffs']}", link(record["id"])),
+            ])
+        pivots = [record for record in focus if record.get("supersedes") and record["supersedes"] in all_records]
+        if pivots:
+            blocks.append("### How the choices changed")
+            for record in pivots:
+                blocks.append(f"{link(record['id'])} replaced {link(record['supersedes'])}.")
+
+    overrules = [record for record in focus if "Overruled by human" in record["ai_roles"]]
+    if overrules:
+        blocks.append("## Human judgment and rejected options")
+        for record in overrules:
+            blocks.append(f"**{record['title']} — human overrule.** {link(record['id'])}")
+            rejection = record["rejections"]
+            if "\n" in rejection or rejection.startswith(("- ", "* ")):
+                blocks.append("\n".join(f"> {line}" if line else ">" for line in rejection.splitlines()))
+            else:
+                blocks.append(rejection)
+
+    captures = {event["id"]: event for event in packet["events"] if event["kind"] == "screenshot"}
+    if "captures" in narrative:
+        chosen = narrative["captures"]
+    else:
+        chosen = []
+        for record in focus:
+            related = [event for event in captures.values() if event["record_id"] == record["id"]]
+            before = [event for event in related if event["state"] == "before"]
+            after = [event for event in related if event["state"] == "after"]
+            if before and after:
+                chosen.extend((before[-1]["id"], after[-1]["id"]))
+            elif after or related:
+                chosen.append((after or related)[-1]["id"])
+            if len(chosen) >= 6:
+                break
+        chosen = chosen[:6]
+    if chosen:
+        blocks.extend(["## Visual evidence", "\n".join(
+            screenshot_line(captures[key], root, target.parent, link(captures[key]["record_id"]))
+            for key in chosen
+        )])
+
+    outcomes = []
+    missing = []
+    outcome_events = {}
+    for event in packet["events"]:
+        if event["kind"] == "outcome":
+            outcome_events.setdefault(event["record_id"], []).append(event)
+    for record in focus:
+        key = record["id"]
+        observed = record.get("outcome", "").strip()
+        if has_outcome(observed):
+            outcomes.append(sourced_field(observed, link(key)))
+        elif key not in outcome_events:
+            missing.append(key)
+        for event in outcome_events.get(key, []):
+            note = source_link(f"Outcome {event['date']}", root / event["path"], target.parent)
+            outcomes.append(sourced_field(event["text"], f"{link(key)} {note}"))
+    blocks.append("## Outcomes and limits")
+    blocks.extend(outcomes)
+    if missing:
+        qualifier = "the featured decisions" if len(missing) == len(focus) else "some featured decisions"
+        blocks.append(f"[verify] No observed outcome is logged for {qualifier}. "
+                      "Captured screens document interface states, not user impact.")
+    if "reflection" in narrative:
+        blocks.extend(["## Reflection", *paragraphs(narrative["reflection"])])
+    else:
+        questions = [record for record in focus if record.get("open_questions", "").strip()
+                     and record["open_questions"].strip().casefold().rstrip(".") != "none"]
+        if questions:
+            blocks.append("## Reflection")
+            blocks.extend(sourced_field(record["open_questions"], link(record["id"])) for record in questions[:3])
+    return "\n\n".join(blocks) + "\n"
+
+
 def target_path(root, log, output):
     drafts = log / "drafts"
     if output is None:
@@ -329,8 +473,12 @@ def compile_draft(args, root, log):
     if args.narrative is not None:
         raw = sys.stdin.read() if args.narrative == "-" else (root / args.narrative).read_text(encoding="utf-8")
         allowed = {record["id"] for record in (*packet["selected"], *packet["history"])}
-        narrative = validate_narrative(json.loads(raw), allowed)
+        narrative = validate_narrative(
+            json.loads(raw), allowed,
+            {record["id"] for record in packet["selected"]},
+            {event["id"] for event in packet["events"] if event["kind"] == "screenshot"},
+        )
     target = target_path(root, log, args.output)
-    text = render_draft(packet, narrative, root, target)
+    text = (render_story_draft if args.edition == "story" else render_draft)(packet, narrative, root, target)
     written = install_draft(target, text, args.overwrite, increment=args.output is None)
     print(written)

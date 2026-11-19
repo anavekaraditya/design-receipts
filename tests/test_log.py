@@ -110,7 +110,7 @@ class ReceiptLogTests(unittest.TestCase):
         self.cli("outcome", "1", "--confirmed", data={"text": "A second review confirmed the target."})
         self.assertTrue((events / "3-outcome-1.md").exists())
         self.cli("capture", "--supersedes", "1", "--confirmed", data={**RECEIPT, "title": "New direction"})
-        draft = Path(self.cli("compile").strip()).read_text(encoding="utf-8")
+        draft = Path(self.cli("compile", "--edition", "archive").strip()).read_text(encoding="utf-8")
         self.assertIn("[Decision 1](../0001-keep-the-stop-list-scannable.md)", draft)
         self.assertIn("[Decision 2](../2-new-direction.md)", draft)
         self.assertIn("../events/0002-screenshot-0001/image.png", draft)
@@ -165,14 +165,14 @@ class ReceiptLogTests(unittest.TestCase):
     def test_unmeasured_outcome_stays_visible_in_review_and_draft(self):
         self.seed(outcome="No outcome has been measured yet.")
         self.assertIn("outcome pending", self.cli("review"))
-        output = Path(self.cli("compile").strip())
+        output = Path(self.cli("compile", "--edition", "archive").strip())
         self.assertIn("[verify] No outcome recorded", output.read_text(encoding="utf-8"))
         self.assertIn("known observation", self.cli("outcome", "0001", "--confirmed", data={"text": "Unmeasured."}, ok=False))
 
     def test_known_outcome_stays_in_the_draft_alongside_an_open_measurement(self):
         outcome = "Two walkthroughs confirmed the extra tap. [verify] Measure scanning time."
         self.seed(outcome=outcome)
-        output = Path(self.cli("compile").strip())
+        output = Path(self.cli("compile", "--edition", "archive").strip())
         self.assertIn(outcome, output.read_text(encoding="utf-8"))
 
     def attach(self, record_id, source, *flags, state="after", route="/stops", ok=True):
@@ -207,7 +207,7 @@ class ReceiptLogTests(unittest.TestCase):
         self.assertIn("[Before screenshot](events/1-screenshot-1/README.md)", index)
         self.assertIn("[After screenshot](events/2-screenshot-1/README.md)", index)
         self.assertEqual(self.git("status", "--short", "--untracked-files=all").stdout, "")
-        draft = Path(self.cli("compile").strip()).read_text(encoding="utf-8")
+        draft = Path(self.cli("compile", "--edition", "archive").strip()).read_text(encoding="utf-8")
         self.assertIn("## Visual evidence", draft)
         self.assertIn("../events/1-screenshot-1/image.png", draft)
         self.assertIn("../events/2-screenshot-1/image.png", draft)

@@ -68,6 +68,8 @@ class CompileTests(unittest.TestCase):
         }
 
     def run_action(self, *arguments, stdin=""):
+        if arguments and arguments[0] == "compile" and "--edition" not in arguments:
+            arguments = (*arguments, "--edition", "archive")
         args = self.parser.parse_args(arguments)
         output = io.StringIO()
         with contextlib.redirect_stdout(output), patch.object(sys, "stdin", io.StringIO(stdin)):
@@ -186,6 +188,60 @@ class CompileTests(unittest.TestCase):
         draft = output.read_text(encoding="utf-8")
         self.assertIn("The ordering changed after the first iteration. [Decision 1](../0001-route.md) [Decision 2](../0002-route.md)", draft)
         self.assertNotIn("[Receipt 000", draft)
+
+    def test_story_focus_selects_current_decisions_and_chosen_visuals(self):
+        self.events.clear()
+        self.screenshot("0001", "before", "Earlier list")
+        after = self.screenshot("0002", "after", "New list")
+        other = self.screenshot("0004", "state", "Old map")
+        self.events.append({
+            "id": "0004", "kind": "outcome", "record_id": "0002", "date": "2026-11-18",
+            "text": "In the hallway test, two riders read the stop sign first.",
+            "path": self.log / "events" / "0004-outcome-0002.md",
+        })
+        narrative = {
+            "title": "The next bus first",
+            "focus": [2],
+            "captures": [2],
+            "overview": [{"text": "Time order guided the new list.", "sources": [1, 2]}],
+            "themes": [{"title": "Find the next bus", "paragraphs": [
+                {"text": "I chose time order over route groups.", "sources": [1, 2]},
+            ]}],
+            "reflection": [{"text": "[verify] Ask riders if the new order helps.", "sources": []}],
+        }
+        output = Path(self.run_action(
+            "compile", "--edition", "story", "--narrative", "-", stdin=json.dumps(narrative),
+        ))
+        draft = output.read_text(encoding="utf-8")
+        self.assertIn("# The next bus first", draft)
+        self.assertIn("**Show next arrival first — human overrule.**", draft)
+        self.assertIn("New list", draft)
+        self.assertNotIn("Earlier list", draft)
+        self.assertNotIn("Old map", draft)
+        self.assertNotIn("Unconfirmed idea", draft)
+        self.assertNotIn("## What was avoided and why", draft)
+        self.assertNotIn("## How AI was used", draft)
+        self.assertNotIn("No outcome recorded", draft)
+        self.assertIn("In the hallway test", draft)
+        self.assertTrue(after.exists())
+        self.assertTrue(other.exists())
+
+    def test_story_rejects_unconfirmed_focus_and_unknown_capture(self):
+        self.events.clear()
+        self.screenshot("0002", "after", "New list")
+        for narrative in ({"focus": [3]}, {"captures": [999]}, {"focus": []}):
+            with self.subTest(narrative=narrative), self.assertRaises(ValueError):
+                self.run_action("compile", "--edition", "story", "--narrative", "-", stdin=json.dumps(narrative))
+        self.assertFalse((self.log / "drafts").exists())
+
+    def test_story_default_summarizes_missing_outcomes_once(self):
+        self.records["0001"]["effective_status"] = "accepted"
+        self.records["0001"]["supersedes"] = None
+        output = Path(self.run_action("compile", "--edition", "story"))
+        draft = output.read_text(encoding="utf-8")
+        self.assertEqual(draft.count("No observed outcome is logged"), 1)
+        self.assertIn("## Outcomes and limits", draft)
+        self.assertNotIn("No outcome recorded for **", draft)
 
     def test_drafts_use_distinct_paths_and_explicit_replacement(self):
         first = Path(self.run_action("compile"))

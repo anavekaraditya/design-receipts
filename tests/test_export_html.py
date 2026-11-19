@@ -75,7 +75,9 @@ I chose this because the original list felt crowded. [Receipt 0001](../0001-choi
         self.assertIn('<span class="source-number">Decision 1</span>', output)
         self.assertIn('<h3>Decision 0001</h3>', output)
         self.assertNotIn('>Receipt 0001</a>', output)
-        self.assertIn('href="#capture-0001"', output)
+        self.assertIn('id="capture-0001"', output)
+        self.assertNotIn('id="section-visual-evidence"', output)
+        self.assertLess(output.index('id="captured-states"'), output.index('id="section-outcomes"'))
         self.assertIn(f'src="data:image/png;base64,{base64.b64encode(PNG).decode()}"', output)
         self.assertIn("Selected stop &lt;open&gt; &amp; arrival visible", output)
         self.assertIn("After · /stops · 1440x900 · 2026-11-17", output)
@@ -155,7 +157,7 @@ I chose this because the original list felt crowded. [Receipt 0001](../0001-choi
 
     def test_evidence_fields_do_not_recursively_export_unrelated_records(self):
         self.records["0001"]["evidence"] = "See [other receipt](0003-choice.md) and [Figma](https://figma.com/file/test)."
-        output = self.render("[Receipt](../0001-choice.md)")
+        output = self.render("[Receipt](../0001-choice.md)", edition="archive")
         self.assertIn("See other receipt", output)
         self.assertIn('href="https://figma.com/file/test"', output)
         self.assertNotIn("Decision 0003", output)
@@ -203,6 +205,33 @@ I chose this because the original list felt crowded. [Receipt 0001](../0001-choi
         self.assertIn('href="https://example.invalid/Design_(process)"', output)
         self.assertIn('href="#receipt-0001"', output)
         self.assertNotIn('process)</a>)', output)
+
+    def test_story_uses_abridged_sources_and_archive_keeps_full_record(self):
+        story = self.render("[Decision 1](../0001-choice.md)")
+        archive = self.render("## A choice\n\n[Decision 1](../0001-choice.md)", edition="archive")
+        self.assertIn("Decision sources · abridged", story)
+        self.assertNotIn("Route names need room.", story)
+        self.assertIn("Route names need room.", archive)
+        self.assertIn('<nav class="contents"', archive)
+        self.assertIn('href="#section-a-choice"', archive)
+        self.assertIn('href="#decision-sources"', archive)
+
+    def test_matching_before_after_captures_form_a_pair_in_link_order(self):
+        bundle = self.log / "events" / "0003-screenshot-0001"
+        bundle.mkdir(parents=True)
+        image = bundle / "image.png"
+        image.write_bytes(PNG)
+        before = dict(self.events[0], id="0003", state="before", text="Before state",
+                      path=bundle / "README.md", image_path=image)
+        self.events.append(before)
+        output = self.render(
+            "[Before](../events/0003-screenshot-0001/image.png)\n\n"
+            "[After](../events/0001-screenshot-0001/image.png)",
+        )
+        self.assertIn('class="capture-pair"', output)
+        self.assertLess(output.index('id="capture-0003"'), output.index('id="capture-0001"'))
+        self.assertEqual(output.count('id="capture-0003"'), 1)
+        self.assertEqual(output.count('id="capture-0001"'), 1)
 
 
 if __name__ == "__main__":

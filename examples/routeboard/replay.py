@@ -95,6 +95,7 @@ def main():
     run_receipts(
         project,
         "compile",
+        "--edition", "archive",
         "--narrative",
         "-",
         "--output",
